@@ -34,11 +34,25 @@ docker-compose down
 ```bash
 cd frontend
 pnpm install --frozen-lockfile
+pnpm exec prisma generate   # writes the gitignored client to src/generated/prisma
 pnpm run dev
 pnpm run build
 pnpm run start
 pnpm run lint
 ```
+
+`pnpm dev` serves the app on <http://localhost:3107>. If you reach the dev
+server through a tunnel or sandbox hostname, list those origins so Next.js
+serves `/_next/*` to them:
+
+```bash
+NEXT_DEV_ALLOWED_ORIGINS="*.e2b.app,my-tunnel.example" pnpm run dev
+```
+
+`prisma generate` downloads Prisma's engines on first run, so it needs network
+access once; afterwards the generated client and engines are cached locally. A
+frontend without it fails to render any page that touches auth with
+`Cannot find module '../generated/prisma'`.
 
 ## Backend
 

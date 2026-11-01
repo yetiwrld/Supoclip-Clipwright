@@ -18,9 +18,19 @@ const posthogRewrites = isPostHogEnabled
     ]
   : [];
 
+// Dev-server only: Next.js warns (and in future majors blocks) `/_next/*`
+// requests whose Origin is not the host the server was started on, which breaks
+// tunnel and sandbox previews (e.g. *.e2b.app). List extra dev origins with a
+// comma-separated NEXT_DEV_ALLOWED_ORIGINS; production builds ignore this.
+const allowedDevOrigins = (process.env.NEXT_DEV_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_BUILD_DIR || ".next",
   output: 'standalone',
+  allowedDevOrigins,
   // Keep canonical tags in the initial <head>, including for Googlebot.
   htmlLimitedBots: /.*/,
   // PostHog's API paths end in a slash (e.g. /e/); don't redirect them.
