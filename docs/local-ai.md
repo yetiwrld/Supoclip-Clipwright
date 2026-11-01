@@ -206,10 +206,38 @@ nothing needs to reach Ollama directly — the backend does the talking.
   (~3 GB) plus FFmpeg (~1–2 GB) fits comfortably in 16 GB. Avoid loading
   `medium` or `large` on this machine.
 
+## Timeouts: how long one analysis window may take
+
+Local analysis has four timeout layers, and the longest budget is the one that
+governs:
+
+| Layer | Default | Where | Notes |
+|---|---|---|---|
+| Per-window analysis budget | `1800` s | `AI_ANALYSIS_TIMEOUT_SECONDS` (`src/config.py`, used in `src/ai.py`) | One 12-minute transcript window. Invalid values fall back to 1800; values are clamped to 60–21600 |
+| Whole-run budget (all windows) | derived | `resolve_analysis_total_timeout_seconds` (`src/ai.py`) | One per-window budget per batch of 3 concurrent windows, so it is never shorter than a single window. `AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS` can raise it (max 43200) |
+| Ollama HTTP read timeout | follows the per-window budget | `build_ollama_http_client` (`src/ai.py`) | Connect stays 10 s, so a stopped Ollama fails fast with an actionable error |
+| ARQ worker `job_timeout` | derived (≥ 10800 s) | `Config.worker_job_timeout_seconds`, used in `src/workers/tasks.py` | One per-window budget per batch for the longest allowed source, plus 30 min for download/transcribe/render. The stale-processing sweep stays 1 h above it |
+
+The 600 s per-window value this project shipped with was too short for a 3B
+model on a Ryzen 5 4600U: ordinary windows hit
+"The AI analysis service took too long to respond" while the model was still
+working. If you see that message, the run really was slow (not malformed JSON —
+that is logged separately as invalid structured output). Raise the budget:
+
+```dotenv
+AI_ANALYSIS_TIMEOUT_SECONDS=2400
+```
+
+then restart the backend and worker (`docker compose up -d backend worker`, or
+restart `uvicorn`/`arq` outside Docker). Retrying the task reuses the saved
+transcript: the word-timed cache next to the source file is read back instead of
+running Whisper again.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| "The AI analysis service took too long to respond" | A window exceeded `AI_ANALYSIS_TIMEOUT_SECONDS` | Raise `AI_ANALYSIS_TIMEOUT_SECONDS` (see [Timeouts](#timeouts-how-long-one-analysis-window-may-take)), or switch to a smaller Whisper model / `llama3.2:3b` on this hardware |
 | Settings shows "Ollama is not reachable" | Daemon not running | Start Ollama (system tray on Windows) or `ollama serve` |
 | "model 'llama3.2:3b' is not installed" | Model never pulled | `ollama pull llama3.2:3b` |
 | Docker backend cannot reach the host daemon | Ollama bound to loopback only | Set `OLLAMA_HOST=0.0.0.0:11434` for the Ollama service, or keep `host.docker.internal` and allow it through the Windows firewall |

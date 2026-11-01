@@ -10,6 +10,7 @@ import {
   Loader2,
   RefreshCw,
   Terminal,
+  Timer,
   X,
 } from "lucide-react";
 
@@ -67,7 +68,13 @@ interface LocalAiStatus {
     message: string | null;
     requires_internet: boolean;
   };
-  runtime: { ffmpeg: { available: boolean; path: string; message: string | null } };
+  runtime: {
+    ffmpeg: { available: boolean; path: string; message: string | null };
+    /** Wall-clock budget for one transcript-analysis window. */
+    ai_analysis_timeout_seconds?: number | null;
+    /** arq job timeout derived from that budget. */
+    worker_job_timeout_seconds?: number | null;
+  };
   optional_online_features: {
     id: string;
     label: string;
@@ -278,6 +285,14 @@ export function LocalAiPanel() {
                   : "Hosted provider"
               }
             />
+            {typeof status.runtime.ai_analysis_timeout_seconds === "number" && (
+              <InfoTile
+                icon={<Timer className="size-3.5" />}
+                label="Analysis time budget"
+                value={`${Math.round(status.runtime.ai_analysis_timeout_seconds / 60)} min per window`}
+                hint="Raise AI_ANALYSIS_TIMEOUT_SECONDS if a slow local model times out"
+              />
+            )}
           </dl>
 
           {status.llm.installed_models.length > 0 && (

@@ -286,9 +286,26 @@ def test_status_payload_is_complete_and_marks_online_features(clean_env, tmp_pat
     assert status["llm"]["model_available"] is True
     ids = [check["id"] for check in status["checks"]]
     assert ids == ["whisper_model", "ollama", "llm_model", "ffmpeg"]
+    # The effective analysis budgets are reported so a slow model can be judged
+    # against the value the worker actually uses.
+    assert status["runtime"]["ai_analysis_timeout_seconds"] == 1800
+    assert status["runtime"]["worker_job_timeout_seconds"] >= 10800
     feature_ids = {feature["id"] for feature in status["optional_online_features"]}
     assert {"stream_downloads", "broll", "social_publishing", "hosted_ai"} <= feature_ids
     assert all(f["requires_internet"] for f in status["optional_online_features"])
+
+
+def test_status_reports_a_raised_analysis_budget(clean_env, tmp_path, ollama, monkeypatch):
+    clean_env.setenv("WHISPER_MODEL_DIR", str(tmp_path))
+    (tmp_path / "small.pt").write_bytes(b"x")
+    clean_env.setenv("AI_ANALYSIS_TIMEOUT_SECONDS", "2700")
+    monkeypatch.setattr(local_ai, "check_ffmpeg", lambda: {
+        "available": True, "path": "/usr/bin/ffmpeg", "ffprobe_available": True, "message": None,
+    })
+
+    status = local_ai.local_ai_status(Config())
+
+    assert status["runtime"]["ai_analysis_timeout_seconds"] == 2700
 
 
 def test_status_is_not_ready_when_whisper_is_missing(clean_env, tmp_path, ollama, monkeypatch):

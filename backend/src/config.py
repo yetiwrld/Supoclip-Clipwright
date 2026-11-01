@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+import logging
 import math
 import os
 
@@ -7,9 +8,33 @@ from .runtime_settings import get_cached_setting, setting_prefers_admin
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 _config_override = None
 LOCAL_OLLAMA_BASE_URL = "http://localhost:11434/v1"
 DOCKER_OLLAMA_BASE_URL = "http://host.docker.internal:11434/v1"
+# Budget in seconds for ONE transcript-analysis window. A local CPU-only
+# Ollama model needs several minutes for a 12-minute window, so a fixed
+# 600s budget used to fail ordinary hardware. Operators can raise or lower it
+# with AI_ANALYSIS_TIMEOUT_SECONDS; the whole-run budget derives from it.
+DEFAULT_AI_ANALYSIS_TIMEOUT_SECONDS = 1800
+MIN_AI_ANALYSIS_TIMEOUT_SECONDS = 60
+# Six hours per window is far beyond any real local model run; it only exists
+# so a typo (e.g. a milliseconds value) cannot hold a worker slot forever.
+MAX_AI_ANALYSIS_TIMEOUT_SECONDS = 6 * 3600
+# Optional hard cap for all windows together. 0 means "derive from the window
+# count and the per-window budget" so the total can never undercut a window.
+MAX_AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS = 12 * 3600
+# Transcript windowing. Long transcripts are analysed in overlapping windows so
+# the model sees manageable prompts; these live here (not in ai.py) so the
+# worker job timeout can be derived from them without a circular import.
+AI_ANALYSIS_WINDOW_SECONDS = 12 * 60
+AI_ANALYSIS_WINDOW_OVERLAP_SECONDS = 2 * 60
+AI_ANALYSIS_WINDOW_CONCURRENCY = 3
+# Extra time a worker keeps a job alive beyond the analysis budget, for
+# download, Whisper transcription and rendering.
+WORKER_JOB_TIMEOUT_MARGIN_SECONDS = 1800
+DEFAULT_WORKER_JOB_TIMEOUT_SECONDS = 3 * 3600
 # ClipWright Studio is offline-first: these are the defaults every fresh
 # installation gets, and the values the setup script writes into .env.
 DEFAULT_OLLAMA_MODEL = "llama3.2:3b"
@@ -63,6 +88,23 @@ class Config:
         self.llm = self._get_runtime_setting("LLM") or self._infer_default_llm()
         # Optional separate model for the cross-window candidate rerank pass.
         self.rerank_llm = self._get_optional_env("RERANK_LLM") or self.llm
+        # Wall-clock budget for one transcript-analysis window (seconds).
+        # Invalid values fall back to the default and out-of-range values are
+        # clamped, so a typo can neither disable analysis nor hang a worker.
+        self.ai_analysis_timeout_seconds = self._get_bounded_int_env(
+            "AI_ANALYSIS_TIMEOUT_SECONDS",
+            DEFAULT_AI_ANALYSIS_TIMEOUT_SECONDS,
+            minimum=MIN_AI_ANALYSIS_TIMEOUT_SECONDS,
+            maximum=MAX_AI_ANALYSIS_TIMEOUT_SECONDS,
+        )
+        # 0 derives the whole-run budget from the window count, which guarantees
+        # the total never becomes shorter than a single window's budget.
+        self.ai_analysis_total_timeout_seconds = self._get_bounded_int_env(
+            "AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS",
+            0,
+            minimum=0,
+            maximum=MAX_AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS,
+        )
         self.assembly_ai_api_key = self._get_runtime_setting("ASSEMBLY_AI_API_KEY")
         self.assembly_ai_http_timeout_seconds = int(
             os.getenv("ASSEMBLY_AI_HTTP_TIMEOUT_SECONDS", "900")
@@ -186,15 +228,19 @@ class Config:
         self.queued_task_timeout_seconds = int(
             os.getenv("QUEUED_TASK_TIMEOUT_SECONDS", "180")
         )
-        # Fail-safe: processing tasks whose worker died mid-run should not stay
-        # "processing" forever. Default comfortably exceeds arq's job_timeout so
-        # a legitimately long job is never falsely swept into "error".
-        self.processing_task_timeout_seconds = int(
-            os.getenv("PROCESSING_TASK_TIMEOUT_SECONDS", "14400")
-        )
-
         self.self_host = self._get_bool_env("SELF_HOST", True)
         self.monetization_enabled = not self.self_host
+        # arq kills a job at job_timeout. It is derived from the local analysis
+        # budget so a raised AI_ANALYSIS_TIMEOUT_SECONDS can never be cut short
+        # by a shorter hard-coded worker timeout.
+        self.worker_job_timeout_seconds = self._derive_worker_job_timeout_seconds()
+        # Fail-safe: processing tasks whose worker died mid-run should not stay
+        # "processing" forever. It always stays above the worker job timeout so
+        # a legitimately long job is never falsely swept into "error".
+        self.processing_task_timeout_seconds = max(
+            int(os.getenv("PROCESSING_TASK_TIMEOUT_SECONDS", "14400")),
+            self.worker_job_timeout_seconds + 3600,
+        )
         self.backend_auth_secret = self._get_optional_env("BACKEND_AUTH_SECRET")
         self.allow_unsigned_backend_auth = self._get_bool_env(
             "ALLOW_UNSIGNED_BACKEND_AUTH", False
@@ -363,6 +409,49 @@ class Config:
             "WHISPER_MODEL_DIR": self.whisper_model_dir,
         }
 
+    def _max_source_duration_seconds(self) -> int:
+        """Longest source a plan may process; bounds the analysis window count."""
+        durations = [getattr(self, "max_video_duration", 0)]
+        if getattr(self, "monetization_enabled", False):
+            durations.extend(
+                [
+                    getattr(self, "pro_youtube_max_video_duration", 0),
+                    getattr(self, "scale_youtube_max_video_duration", 0),
+                ]
+            )
+        try:
+            return max(600, *(int(value or 0) for value in durations))
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            return 5400
+
+    def _derive_analysis_windows(self) -> int:
+        """Windows a maximum-length source splits into, rounded up."""
+        step = max(60, AI_ANALYSIS_WINDOW_SECONDS - AI_ANALYSIS_WINDOW_OVERLAP_SECONDS)
+        return max(1, math.ceil(self._max_source_duration_seconds() / step) + 1)
+
+    def _derive_worker_job_timeout_seconds(self) -> int:
+        """Longest analysis run for a max-length source, plus real-work margin.
+
+        Mirrors ``ai.resolve_analysis_total_timeout_seconds``: windows run
+        ``AI_ANALYSIS_WINDOW_CONCURRENCY`` at a time, so the whole-run budget is
+        one window budget per batch. Overriding AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS
+        upward raises this too; it can never lower it below one window.
+        """
+        per_window = max(1, int(self.ai_analysis_timeout_seconds))
+        batches = max(
+            1, math.ceil(self._derive_analysis_windows() / AI_ANALYSIS_WINDOW_CONCURRENCY)
+        )
+        derived = per_window * batches
+        analysis_total = max(
+            derived, int(self.ai_analysis_total_timeout_seconds or 0), per_window
+        )
+        # One extra window-sized slot covers the comparative rerank pass, which
+        # uses the same budget as a single window (src/ai.py::rerank_candidates).
+        return max(
+            DEFAULT_WORKER_JOB_TIMEOUT_SECONDS,
+            analysis_total + per_window + WORKER_JOB_TIMEOUT_MARGIN_SECONDS,
+        )
+
     @staticmethod
     def _get_int_env(name: str, default: int) -> int:
         try:
@@ -393,6 +482,39 @@ class Config:
         if not math.isfinite(value) or value <= 0:
             return default
         return min(value, maximum)
+
+    @staticmethod
+    def _get_bounded_int_env(
+        name: str, default: int, *, minimum: int, maximum: int
+    ) -> int:
+        """Parse a whole-number seconds value and keep it inside a safe range.
+
+        Absent, blank, or non-numeric values use ``default``. Values outside
+        ``[minimum, maximum]`` are clamped and logged, so a mistyped budget is
+        visible in the logs instead of silently disabling local analysis or
+        pinning a worker slot for hours.
+        """
+        raw = os.getenv(name)
+        if raw is None or not str(raw).strip():
+            return default
+        try:
+            value = int(str(raw).strip())
+        except (TypeError, ValueError):
+            logger.warning(
+                "%s=%r is not a whole number of seconds; using %ss", name, raw, default
+            )
+            return default
+        if value < minimum:
+            logger.warning(
+                "%s=%ss is below the %ss minimum; using %ss", name, value, minimum, minimum
+            )
+            return minimum
+        if value > maximum:
+            logger.warning(
+                "%s=%ss exceeds the %ss maximum; using %ss", name, value, maximum, maximum
+            )
+            return maximum
+        return value
 
     @staticmethod
     def _get_bool_env(name: str, default: bool) -> bool:

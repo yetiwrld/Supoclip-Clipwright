@@ -495,7 +495,20 @@ def local_ai_status(config: Optional[Config] = None) -> dict[str, Any]:
         "ready_for_offline_processing": ready,
         "transcription": transcription,
         "llm": llm,
-        "runtime": {"ffmpeg": ffmpeg},
+        "runtime": {
+            "ffmpeg": ffmpeg,
+            # Surfaced so a slow local model can be judged against the real
+            # budget instead of a documentation value.
+            "ai_analysis_timeout_seconds": getattr(
+                config, "ai_analysis_timeout_seconds", None
+            ),
+            "ai_analysis_total_timeout_seconds": getattr(
+                config, "ai_analysis_total_timeout_seconds", None
+            ),
+            "worker_job_timeout_seconds": getattr(
+                config, "worker_job_timeout_seconds", None
+            ),
+        },
         "optional_online_features": optional_online_features(config),
         "checks": [
             {

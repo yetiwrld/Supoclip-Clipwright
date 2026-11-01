@@ -6,6 +6,10 @@ Add a line here when a pull request changes something a user can see. Use **New*
 
 ## 2026-11-01
 
+- **Fixed:** Local clip analysis no longer gives up after ten minutes on a slow CPU. The per-window budget is now `AI_ANALYSIS_TIMEOUT_SECONDS` (default 30 minutes) instead of a hard-coded 600 seconds, and the whole-run budget, the Ollama request timeout and the worker timeout all follow it. ([local AI](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))
+- **Improved:** Retrying a task after a failed analysis reuses the word-timed transcript already on disk instead of running Whisper again, so a retry takes minutes rather than another full transcription. ([local AI](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))
+- **Improved:** Logs now say whether analysis failed because the model was slow (budget exceeded) or because it returned malformed output, so the fix is obvious. ([troubleshooting](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/troubleshooting.md))
+
 - **New:** `scripts/verify_local_ai.py` checks the backend, the render worker and the AI worker from *inside* each container and names the exact failing component (for example `worker: ollama_reachable`). ([local AI](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))
 - **New:** `docker compose exec -T <service> .venv/bin/python -m src.local_ai --check` runs the same probe inside a single service, including whether the Whisper checkpoint is readable and the uploads/clips/models mounts are writable there. ([local AI](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))
 - **New:** `scripts/setup-ollama-windows.ps1` fixes the usual Windows failure — Ollama listening on `127.0.0.1` only, so containers cannot reach it. It binds `0.0.0.0:11434`, restarts Ollama and opens TCP 11434 to the Docker subnet on the Private profile only; `-UseDockerOllama` runs it inside Compose instead. ([setup](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))

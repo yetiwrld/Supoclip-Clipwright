@@ -132,8 +132,10 @@ AssemblyAI status polling uses one budget based on
 bounded to 30 seconds or the remaining budget. A poll timeout retries the same
 transcript rather than submitting another paid job. Upload requests still use
 the configured HTTP timeout. Increase the setting for long media only after
-checking the logs. AI analysis already has a 600-second overall budget and
-up to three attempts for transient provider/network errors.
+checking the logs. AI analysis already has a configurable per-window budget
+(`AI_ANALYSIS_TIMEOUT_SECONDS`, default 1800 s), a derived whole-run budget
+and up to three attempts for transient provider/network errors; a slow window
+is logged separately from invalid model output.
 
 ## Backend Starts But Clip Generation Fails
 

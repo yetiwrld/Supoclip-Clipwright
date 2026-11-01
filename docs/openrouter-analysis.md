@@ -16,8 +16,8 @@ OpenRouter receives Sonnet as the primary `model` and Luna in the `models`
 fallback list. It handles provider and model failover. ClipWright Studio requests strict
 native JSON schema output, requires compatible endpoints, excludes providers
 that collect data, uses low reasoning effort, and caps each response at 8,192
-tokens. Existing schema repair retries and the overall 600-second analysis
-deadline remain in effect. The model actually returned is logged, without the
+tokens. Existing schema repair retries and the configurable per-window analysis
+budget (`AI_ANALYSIS_TIMEOUT_SECONDS`, default 1800 s) remain in effect. The model actually returned is logged, without the
 transcript or credentials. Local timestamp and clip-duration validation remains.
 
 The installed PydanticAI profile predates Sonnet 5.5, so the adapter explicitly

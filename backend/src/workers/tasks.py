@@ -252,7 +252,10 @@ class WorkerSettings:
 
     # Retry settings
     max_tries = 3  # Retry failed jobs up to 3 times
-    job_timeout = 10800  # 3 hour timeout for video processing
+    # Derived from AI_ANALYSIS_TIMEOUT_SECONDS (see Config.worker_job_timeout_seconds)
+    # so a raised local-analysis budget is never cut short by a shorter hard-coded
+    # worker timeout. The 3 hour floor is preserved for the default budget.
+    job_timeout = config.worker_job_timeout_seconds
 
     # Worker pool settings
     max_jobs = 4  # Process up to 4 jobs simultaneously

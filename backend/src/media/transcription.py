@@ -471,19 +471,105 @@ def _get_transcript_with_assemblyai(
         client.http_client.close()
 
 
+def cached_transcript_as_whisper_result(
+    cache_data: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    """Rebuild a Whisper-shaped result (seconds + segments) from a cache file."""
+    if not cache_data:
+        return None
+    segments: List[Dict[str, Any]] = []
+    for utterance in cache_data.get("utterances") or []:
+        words = [
+            {
+                "word": word.get("text", ""),
+                "start": (word.get("start") or 0) / 1000.0,
+                "end": (word.get("end") or 0) / 1000.0,
+                "probability": word.get("confidence", 1.0),
+            }
+            for word in utterance.get("words") or []
+        ]
+        segments.append(
+            {
+                "text": utterance.get("text", ""),
+                "start": (utterance.get("start") or 0) / 1000.0,
+                "end": (utterance.get("end") or 0) / 1000.0,
+                "words": words,
+            }
+        )
+    if not segments:
+        return None
+    return {
+        "text": cache_data.get("text", ""),
+        "segments": segments,
+        "language": cache_data.get("language_code"),
+    }
+
+
+def reusable_cached_whisper_result(
+    video_path: Path,
+    model_name: Optional[str],
+    language: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """Return a previously cached Whisper transcript for this source, if valid.
+
+    A failed AI analysis must not cost another full Whisper pass: the word-level
+    cache written right after transcription is reused on retry. The cache is
+    only reused for the same model size and language, so switching models still
+    transcribes again and never silently reuses another model's output.
+    """
+    cache_data = load_cached_transcript_data(video_path)
+    if not cache_data:
+        return None
+
+    cached_model = cache_data.get("whisper_model")
+    if cached_model and model_name and str(cached_model) != str(model_name):
+        logger.info(
+            "Cached transcript was made with Whisper '%s', configured model is '%s'; "
+            "transcribing again",
+            cached_model,
+            model_name,
+        )
+        return None
+
+    cached_language = (cache_data.get("language_code") or "").split("_")[0].lower()
+    wanted_language = (language or "").split("_")[0].lower()
+    if cached_language and wanted_language and cached_language != wanted_language:
+        logger.info(
+            "Cached transcript language '%s' differs from configured '%s'; "
+            "transcribing again",
+            cached_language,
+            wanted_language,
+        )
+        return None
+
+    result = cached_transcript_as_whisper_result(cache_data)
+    if result is None:
+        return None
+    logger.info(
+        "Reusing cached Whisper transcript for %s (%d segments, model %s)",
+        video_path.name,
+        len(result["segments"]),
+        cached_model or "unknown",
+    )
+    return result
+
+
 def _get_transcript_with_whisper(video_path: Path, runtime_config) -> str:
     """Get transcript using local Whisper with word-level timestamps."""
     model_name = runtime_config.whisper_model
-    logger.info("Starting Whisper transcription with model: %s", model_name)
-    whisper_result = transcribe_with_whisper(
-        video_path,
-        model_name,
-        runtime_config.transcription_language or None,
-        runtime_config=runtime_config,
-    )
+    language = runtime_config.transcription_language or None
+    whisper_result = reusable_cached_whisper_result(video_path, model_name, language)
+    if whisper_result is None:
+        logger.info("Starting Whisper transcription with model: %s", model_name)
+        whisper_result = transcribe_with_whisper(
+            video_path,
+            model_name,
+            language,
+            runtime_config=runtime_config,
+        )
+        cache_transcript_data(video_path, whisper_result, whisper_model=model_name)
 
     formatted_lines = format_transcript_for_analysis(whisper_result)
-    cache_transcript_data(video_path, whisper_result)
 
     result = "\n".join(formatted_lines)
     logger.info(
@@ -507,15 +593,21 @@ def _get_transcript_with_youtube_captions(source_url: str) -> str:
     return transcript
 
 
-def cache_transcript_data(video_path: Path, transcript) -> None:
+def cache_transcript_data(
+    video_path: Path, transcript, whisper_model: Optional[str] = None
+) -> None:
     """Cache transcript data for subtitle generation.
 
     Handles both AssemblyAI transcript objects and Whisper result dicts.
+    ``whisper_model`` records which local model produced the timings so a retry
+    reuses them only for the same model size.
     """
     cache_path = video_path.with_suffix(".transcript_cache.json")
 
     if isinstance(transcript, dict):
         cache_data = _whisper_result_to_transcript_data(transcript)
+        if whisper_model:
+            cache_data["whisper_model"] = whisper_model
         with open(cache_path, "w") as f:
             json.dump(cache_data, f)
         logger.info("Cached %d words to %s", len(cache_data["words"]), cache_path)

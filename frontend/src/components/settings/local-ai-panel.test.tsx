@@ -38,7 +38,11 @@ const BASE_STATUS = {
     message: null,
     requires_internet: false,
   },
-  runtime: { ffmpeg: { available: true, path: "/usr/bin/ffmpeg", message: null } },
+  runtime: {
+    ffmpeg: { available: true, path: "/usr/bin/ffmpeg", message: null },
+    ai_analysis_timeout_seconds: 1800,
+    worker_job_timeout_seconds: 10800,
+  },
   optional_online_features: [
     {
       id: "stream_downloads",
@@ -78,6 +82,28 @@ describe("LocalAiPanel", () => {
     expect(screen.getByText(/Ollama · llama3.2:3b/)).toBeInTheDocument();
     expect(screen.getByLabelText("Offline mode")).toBeChecked();
     expect(screen.getByText(/No request, transcript, frame or prompt leaves this machine/)).toBeInTheDocument();
+  });
+
+  it("shows the real analysis budget so a slow model is not a mystery", async () => {
+    render(<LocalAiPanel />);
+
+    expect(await screen.findByText("Analysis time budget")).toBeInTheDocument();
+    expect(screen.getByText("30 min per window")).toBeInTheDocument();
+    expect(screen.getByText(/AI_ANALYSIS_TIMEOUT_SECONDS/)).toBeInTheDocument();
+  });
+
+  it("hides the budget tile when an older backend does not report it", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        ...BASE_STATUS,
+        runtime: { ffmpeg: { available: true, path: "/usr/bin/ffmpeg", message: null } },
+      }),
+    );
+
+    render(<LocalAiPanel />);
+
+    await screen.findByText("Ready for offline editing");
+    expect(screen.queryByText("Analysis time budget")).not.toBeInTheDocument();
   });
 
   it("persists switching offline mode off and shows the saved state", async () => {

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -211,3 +212,107 @@ def test_unknown_provider_raises(monkeypatch):
 
     with pytest.raises(ValueError, match="Unsupported TRANSCRIPTION_PROVIDER"):
         transcription.get_video_transcript(Path("/v.mp4"))
+
+
+# ---------------------------------------------------------------------------
+# Cached word timings: never re-run Whisper just because the AI step failed
+# ---------------------------------------------------------------------------
+
+
+_WHISPER_SAMPLE_RESULT = {
+    "text": " Hello world. ",
+    "language": "en",
+    "segments": [
+        {
+            "start": 0.0,
+            "end": 1.5,
+            "text": "Hello world.",
+            "words": [
+                {"word": "Hello", "start": 0.0, "end": 0.7, "probability": 0.9},
+                {"word": "world.", "start": 0.7, "end": 1.5, "probability": 0.8},
+            ],
+        }
+    ],
+}
+
+
+def _video_file(tmp_path):
+    video = tmp_path / "source.mp4"
+    video.write_bytes(b"video")
+    return video
+
+
+def test_cache_records_the_whisper_model_that_produced_it(tmp_path):
+    video = _video_file(tmp_path)
+
+    transcription.cache_transcript_data(video, _WHISPER_SAMPLE_RESULT, whisper_model="small")
+
+    payload = transcription.load_cached_transcript_data(video)
+    assert payload["whisper_model"] == "small"
+    assert payload["words"][0]["start"] == 0
+
+
+def test_cached_transcript_is_reused_instead_of_transcribing_again(tmp_path):
+    from types import SimpleNamespace
+
+    video = _video_file(tmp_path)
+    transcription.cache_transcript_data(video, _WHISPER_SAMPLE_RESULT, whisper_model="small")
+    config = SimpleNamespace(whisper_model="small", transcription_language="")
+
+    def boom(*_args, **_kwargs):
+        raise AssertionError("Whisper must not run again when a cache exists")
+
+    original = transcription.transcribe_with_whisper
+    transcription.transcribe_with_whisper = boom
+    try:
+        text = transcription._get_transcript_with_whisper(video, config)
+    finally:
+        transcription.transcribe_with_whisper = original
+
+    assert "Hello world." in text
+    # Timestamps are rebuilt from the cached word timings (0.0 s - 1.5 s).
+    assert "[00:00 - 00:01] Hello world." in text
+
+
+def test_switching_model_size_transcribes_again(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    video = _video_file(tmp_path)
+    transcription.cache_transcript_data(video, _WHISPER_SAMPLE_RESULT, whisper_model="base")
+    config = SimpleNamespace(whisper_model="small", transcription_language="")
+    calls = []
+
+    def fake_transcribe(*_args, **_kwargs):
+        calls.append(True)
+        return _WHISPER_SAMPLE_RESULT
+
+    monkeypatch.setattr(transcription, "transcribe_with_whisper", fake_transcribe)
+
+    transcription._get_transcript_with_whisper(video, config)
+
+    assert calls == [True]
+    assert transcription.load_cached_transcript_data(video)["whisper_model"] == "small"
+
+
+def test_a_failed_ai_analysis_keeps_the_transcript_for_the_retry(tmp_path):
+    import asyncio
+
+    from src import ai
+
+    video = _video_file(tmp_path)
+    transcription.cache_transcript_data(video, _WHISPER_SAMPLE_RESULT, whisper_model="small")
+
+    async def analysis_times_out():
+        agent = SimpleNamespace(run=AsyncMock(side_effect=RuntimeError("model down")))
+        with pytest.raises(RuntimeError):
+            await ai._run_transcript_analysis(agent, "prompt", timeout_seconds=5)
+
+    asyncio.run(analysis_times_out())
+
+    # The cached words survive the failed analysis, so the retry does not pay
+    # for another transcription.
+    payload = transcription.load_cached_transcript_data(video)
+    assert payload["words"], "transcript cache must survive a failed AI analysis"
+    reused = transcription.reusable_cached_whisper_result(video, "small", None)
+    assert reused is not None
+    assert reused["segments"][0]["text"] == "Hello world."

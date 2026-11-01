@@ -7,12 +7,13 @@ from typing import List, Dict, Any, Optional, Literal
 import asyncio
 import logging
 import math
+import os
 import random
 import re
 
 import httpx
 from pydantic_ai import Agent, NativeOutput
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.ollama import OllamaModel
@@ -24,7 +25,15 @@ from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
-from .config import Config, get_config
+from .config import (
+    AI_ANALYSIS_WINDOW_CONCURRENCY,
+    AI_ANALYSIS_WINDOW_OVERLAP_SECONDS,
+    AI_ANALYSIS_WINDOW_SECONDS,
+    DEFAULT_AI_ANALYSIS_TIMEOUT_SECONDS,
+    MAX_AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS,
+    Config,
+    get_config,
+)
 from .clip_duration import clip_duration
 from .runtime_settings import apply_settings_to_process_env
 
@@ -36,17 +45,28 @@ MIN_ACCEPTED_CLIP_SECONDS = 15
 MAX_ACCEPTED_CLIP_SECONDS = 60
 TRANSCRIPT_ANALYSIS_CACHE_VERSION = "windowed-rerank-v6"
 TRANSCRIPT_ANALYSIS_MAX_ATTEMPTS = 3
-TRANSCRIPT_ANALYSIS_TIMEOUT_SECONDS = 600
+# Default wall-clock budget, in seconds, for ONE transcript-analysis window.
+# Local CPU-only Ollama models routinely need more than ten minutes for a
+# 12-minute window, which is why the old 600s value surfaced as
+# "AI analysis service took too long" on ordinary hardware. The live value
+# comes from AI_ANALYSIS_TIMEOUT_SECONDS (see Config); this constant is the
+# default and stays module-level so tests and callers can override it.
+TRANSCRIPT_ANALYSIS_TIMEOUT_SECONDS = DEFAULT_AI_ANALYSIS_TIMEOUT_SECONDS
 # Long transcripts are analysed in overlapping windows so every part of the
 # source gets the model's full attention; candidates are then reranked together.
-ANALYSIS_WINDOW_SECONDS = 12 * 60
-ANALYSIS_WINDOW_OVERLAP_SECONDS = 2 * 60
+# The window size, overlap and concurrency live in config.py so the worker job
+# timeout can be derived from the same numbers; these aliases keep the names
+# other modules and tests already import.
+ANALYSIS_WINDOW_SECONDS = AI_ANALYSIS_WINDOW_SECONDS
+ANALYSIS_WINDOW_OVERLAP_SECONDS = AI_ANALYSIS_WINDOW_OVERLAP_SECONDS
 ANALYSIS_SINGLE_WINDOW_MAX_SECONDS = 15 * 60
-ANALYSIS_WINDOW_CONCURRENCY = 3
+ANALYSIS_WINDOW_CONCURRENCY = AI_ANALYSIS_WINDOW_CONCURRENCY
 ANALYSIS_WINDOW_SEGMENT_TARGET = "3-5"
-# Wall-clock budget for all windows together. Each window additionally keeps
-# its own TRANSCRIPT_ANALYSIS_TIMEOUT_SECONDS budget once it starts running.
-ANALYSIS_TOTAL_TIMEOUT_SECONDS = 1800
+# Wall-clock budget for all windows together is derived at run time from the
+# per-window budget and the number of windows (see
+# resolve_analysis_total_timeout_seconds), so the total can never be shorter
+# than a single window's budget. AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS can raise
+# that derived total but never shrink it below one window.
 RERANK_TIMEOUT_SECONDS = 240
 CANDIDATE_DEDUPE_OVERLAP_RATIO = 0.5
 # How far a model timestamp may sit from a transcript line boundary and still be
@@ -578,7 +598,29 @@ def _build_transcript_model(
         provider=OllamaProvider(
             base_url=runtime_config.resolve_ollama_base_url(),
             api_key=runtime_config.ollama_api_key,
+            http_client=build_ollama_http_client(
+                resolve_analysis_timeout_seconds(runtime_config)
+            ),
         ),
+    )
+
+
+def build_ollama_http_client(read_timeout_seconds: float) -> httpx.AsyncClient:
+    """HTTP client for local Ollama whose read timeout matches the analysis budget.
+
+    The SDK default read timeout is far shorter than a CPU-only model needs for
+    a full transcript window, which turned slow-but-working local runs into
+    transport errors. Connecting stays fast so a stopped Ollama fails in
+    seconds with an actionable error instead of hanging.
+    """
+    read_timeout = max(30.0, float(read_timeout_seconds))
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(
+            connect=10.0,
+            read=read_timeout,
+            write=60.0,
+            pool=read_timeout,
+        )
     )
 
 
@@ -597,6 +639,9 @@ def get_transcript_agent(clip_length: str = "auto") -> Agent[None, TranscriptAna
         runtime_config.anthropic_api_key,
         runtime_config.ollama_base_url,
         runtime_config.ollama_api_key,
+        # The Ollama HTTP client's read timeout follows this budget, so a
+        # changed budget must rebuild the agent (and its client).
+        resolve_analysis_timeout_seconds(runtime_config),
     )
     if _transcript_agent is None or _transcript_agent_signature != signature:
         apply_settings_to_process_env(runtime_config.as_runtime_settings())
@@ -678,6 +723,7 @@ def get_rerank_agent() -> Agent[None, CandidateRanking]:
         runtime_config.anthropic_api_key,
         runtime_config.ollama_base_url,
         runtime_config.ollama_api_key,
+        resolve_analysis_timeout_seconds(runtime_config),
     )
     if _rerank_agent is None or _rerank_agent_signature != signature:
         apply_settings_to_process_env(runtime_config.as_runtime_settings())
@@ -1135,6 +1181,72 @@ def _is_transient_model_error(error: Exception) -> bool:
     return False
 
 
+def _analysis_timeout_env_is_set() -> bool:
+    raw = os.getenv("AI_ANALYSIS_TIMEOUT_SECONDS")
+    return bool(raw and raw.strip())
+
+
+def resolve_analysis_timeout_seconds(
+    runtime_config: Optional[Config] = None,
+) -> float:
+    """Per-window transcript-analysis budget in seconds.
+
+    ``AI_ANALYSIS_TIMEOUT_SECONDS`` wins when set; Config already validates and
+    clamps it. Otherwise the module-level default is used, which keeps the value
+    overridable (tests, embeddings) without an environment variable.
+    """
+    if _analysis_timeout_env_is_set():
+        try:
+            configured = (runtime_config or get_config()).ai_analysis_timeout_seconds
+        except Exception:  # pragma: no cover - Config never raises in practice
+            configured = None
+        if configured and float(configured) > 0:
+            return float(configured)
+    return float(TRANSCRIPT_ANALYSIS_TIMEOUT_SECONDS)
+
+
+def resolve_analysis_total_timeout_seconds(
+    window_count: int,
+    per_window_seconds: Optional[float] = None,
+    runtime_config: Optional[Config] = None,
+) -> float:
+    """Whole-run budget for every transcript-analysis window.
+
+    Derived from the window count and the per-window budget (windows run with
+    ``ANALYSIS_WINDOW_CONCURRENCY`` parallelism), so the total can never cut a
+    window off early. ``AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS`` may extend it, never
+    shrink it below the derived value or below a single window.
+    """
+    per_window = float(
+        per_window_seconds
+        if per_window_seconds is not None
+        else resolve_analysis_timeout_seconds(runtime_config)
+    )
+    batches = max(1, math.ceil(max(1, int(window_count)) / ANALYSIS_WINDOW_CONCURRENCY))
+    derived = per_window * batches
+    configured = 0.0
+    try:
+        configured = float(
+            getattr(runtime_config or get_config(), "ai_analysis_total_timeout_seconds", 0) or 0
+        )
+    except Exception:  # pragma: no cover - defensive, Config is validated
+        configured = 0.0
+    total = max(derived, configured, per_window)
+    return float(min(total, MAX_AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS))
+
+
+def _is_invalid_model_output(error: Exception) -> bool:
+    """True when the model answered but the answer did not match the schema."""
+    current: BaseException | None = error
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, (UnexpectedModelBehavior, ValueError)):
+            return True
+        current = current.__cause__
+    return False
+
+
 async def _run_transcript_analysis(
     agent: Agent,
     prompt: str,
@@ -1147,7 +1259,7 @@ async def _run_transcript_analysis(
     also count against the wall-clock budget, and cancellation passes through.
     """
     if timeout_seconds is None:
-        timeout_seconds = TRANSCRIPT_ANALYSIS_TIMEOUT_SECONDS
+        timeout_seconds = resolve_analysis_timeout_seconds()
     try:
         async with asyncio.timeout(timeout_seconds):
             for attempt in range(1, TRANSCRIPT_ANALYSIS_MAX_ATTEMPTS + 1):
@@ -1158,6 +1270,21 @@ async def _run_transcript_analysis(
                     return result
                 except Exception as error:
                     if not _is_transient_model_error(error):
+                        # Invalid structured output and transport failures are
+                        # different problems: say which one happened instead of
+                        # blaming the clock for a model that answered badly.
+                        if _is_invalid_model_output(error):
+                            logger.error(
+                                "AI analysis returned invalid structured output after "
+                                "schema-repair retries (%s). This is a model-output "
+                                "problem, not a timeout.",
+                                type(error).__name__,
+                            )
+                        else:
+                            logger.error(
+                                "AI analysis failed with a non-retryable error (%s)",
+                                type(error).__name__,
+                            )
                         raise
                     if attempt == TRANSCRIPT_ANALYSIS_MAX_ATTEMPTS:
                         logger.error(
@@ -1184,9 +1311,16 @@ async def _run_transcript_analysis(
                     )
                     await asyncio.sleep(delay)
     except TimeoutError:
-        logger.error("AI analysis exceeded the %ss time budget", timeout_seconds)
+        # Slow, not wrong: the model was still working when the budget ran out.
+        logger.error(
+            "AI analysis exceeded the %.0fs time budget (slow local model; raise "
+            "AI_ANALYSIS_TIMEOUT_SECONDS if your hardware needs longer)",
+            timeout_seconds,
+        )
         raise RuntimeError(
-            "The AI analysis service took too long to respond. Please try again shortly."
+            "The AI analysis service took too long to respond "
+            f"(window budget {timeout_seconds:.0f}s). Raise AI_ANALYSIS_TIMEOUT_SECONDS "
+            "in .env and restart the backend and worker, or use a smaller local model."
         ) from None
 
 
@@ -1419,7 +1553,11 @@ async def rerank_candidates(
         result = await _run_transcript_analysis(
             agent,
             build_candidate_rerank_prompt(candidates, performance_context),
-            timeout_seconds=RERANK_TIMEOUT_SECONDS,
+            # The comparative rerank reads as much text as one window, so it
+            # gets the same configurable budget instead of a shorter fixed cap.
+            timeout_seconds=max(
+                float(RERANK_TIMEOUT_SECONDS), resolve_analysis_timeout_seconds()
+            ),
         )
         reranked = apply_candidate_ranking(candidates, result.output)
     except Exception as error:
@@ -1444,6 +1582,19 @@ async def _analyze_transcript_windows(
     Raises the first window error only when no window produced an analysis.
     """
     semaphore = asyncio.Semaphore(ANALYSIS_WINDOW_CONCURRENCY)
+    # One budget for a single window, and a whole-run budget derived from it so
+    # a slow local model is given the configured time instead of a shorter
+    # hard-coded cap. The ARQ job timeout is derived from the same numbers.
+    per_window_timeout = resolve_analysis_timeout_seconds()
+    total_timeout = resolve_analysis_total_timeout_seconds(
+        len(windows), per_window_timeout
+    )
+    logger.info(
+        "Analysing %d transcript window(s): %.0fs per window, %.0fs overall",
+        len(windows),
+        per_window_timeout,
+        total_timeout,
+    )
 
     async def run_window(window: Dict[str, Any]) -> TranscriptAnalysis:
         async with semaphore:
@@ -1456,12 +1607,14 @@ async def _analyze_transcript_windows(
                 performance_context=performance_context,
                 clip_length=clip_length,
             )
+            # The default budget resolves AI_ANALYSIS_TIMEOUT_SECONDS, so a
+            # window never inherits a shorter fixed cap.
             result = await _run_transcript_analysis(agent, prompt)
             return result.output
 
     tasks = [asyncio.create_task(run_window(window)) for window in windows]
     try:
-        _, pending = await asyncio.wait(tasks, timeout=ANALYSIS_TOTAL_TIMEOUT_SECONDS)
+        _, pending = await asyncio.wait(tasks, timeout=total_timeout)
     except asyncio.CancelledError:
         for task in tasks:
             task.cancel()
@@ -1469,10 +1622,10 @@ async def _analyze_transcript_windows(
         raise
     if pending:
         logger.warning(
-            "%d of %d analysis windows exceeded the %ss budget",
+            "%d of %d analysis windows exceeded the %.0fs overall budget",
             len(pending),
             len(windows),
-            ANALYSIS_TOTAL_TIMEOUT_SECONDS,
+            total_timeout,
         )
         for task in pending:
             task.cancel()

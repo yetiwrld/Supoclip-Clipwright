@@ -72,7 +72,9 @@ Nothing is required. The defaults run entirely on local models; see
 | `CLIPWRIGHT_DATA_DIR` | `./data` | Root for uploads, clips, models and config on the host; Compose bind mounts it |
 | `ALLOW_HOSTED_AI` | `false` | Second gate for hosted providers: both this and `OFFLINE_MODE=false` are needed |
 | `OLLAMA_BASE_URL` | auto: `http://localhost:11434/v1`, or `http://host.docker.internal:11434/v1` inside Docker | Ollama endpoint. Must stay local unless you knowingly use a remote server |
-| — | built-in timeouts | Analysis 600 s per window, 1800 s total, rerank 240 s, AI editing 120 s, status probe 2.5 s (`backend/src/ai.py`, `services/ai_edit_service.py`, `local_ai.py`). They fail with a typed error instead of hanging a worker |
+| `AI_ANALYSIS_TIMEOUT_SECONDS` | `1800` | Wall-clock budget for **one** transcript-analysis window. Local CPU models need more than the old 600 s on a 12-minute window. Invalid values fall back to 1800; values are clamped to 60–21600 |
+| `AI_ANALYSIS_TOTAL_TIMEOUT_SECONDS` | empty (`0` = derived) | Optional cap for all windows together. The derived value is one per-window budget per batch of `ANALYSIS_WINDOW_CONCURRENCY` (3) windows, so the total can never be shorter than a single window. Capped at 43200 |
+| — | built-in timeouts | The per-window analysis budget comes from `AI_ANALYSIS_TIMEOUT_SECONDS` (above), the Ollama HTTP read timeout and the ARQ `job_timeout` follow it, and the stale-processing sweep stays 1 h above the job timeout. Rerank keeps 240 s (non-fatal: it falls back to first-pass order), AI editing 120 s, status probe 2.5 s (`backend/src/ai.py`, `services/ai_edit_service.py`, `local_ai.py`, `workers/tasks.py`). Slow responses and invalid model output are logged as distinct failures |
 | `OPENAI_API_KEY` | If using OpenAI | Required for `openai:*` models |
 | `GOOGLE_API_KEY` | If using Google | Required for `google-gla:*` models |
 | `ANTHROPIC_API_KEY` | If using Anthropic | Required for `anthropic:*` models |
