@@ -1,5 +1,6 @@
 import { PostHog } from "posthog-node";
 
+import { isOfflineMode } from "@/lib/offline-mode";
 import { POSTHOG_HOST, POSTHOG_KEY, isPostHogEnabled } from "@/lib/posthog-config";
 
 let client: PostHog | null = null;
@@ -9,7 +10,9 @@ let client: PostHog | null = null;
  * straight away, so nothing waits in a queue if the container stops.
  */
 export function getPostHogServer(): PostHog | null {
-  if (!isPostHogEnabled) return null;
+  // Offline mode: server errors and traces stay in the local logs. Checked on
+  // every call (not cached) so the Settings switch applies immediately.
+  if (!isPostHogEnabled || isOfflineMode()) return null;
   client ??= new PostHog(POSTHOG_KEY, { host: POSTHOG_HOST, flushAt: 1, flushInterval: 0 });
   return client;
 }

@@ -91,13 +91,28 @@ class PostHogExceptionHandler(logging.Handler):
 
 
 def get_posthog_client() -> Any:
-    """The shared PostHog client, or None when POSTHOG_PROJECT_TOKEN is unset."""
+    """The shared PostHog client, or None when it must not be used.
+
+    Returns None when ``POSTHOG_PROJECT_TOKEN`` is unset *and* whenever offline
+    mode is on: in offline mode logs, traces and exceptions must stay on this
+    machine, so no exception handler is attached and nothing is shipped to a
+    third party. The check reads the live Offline Mode setting, so switching it
+    in Settings takes effect without a restart.
+    """
     global _posthog_client
     if _posthog_client is not None:
         return _posthog_client
 
     token = os.getenv("POSTHOG_PROJECT_TOKEN", "").strip()
     if not token:
+        return None
+
+    from .config import get_config
+
+    if get_config().offline_mode:
+        logging.getLogger(__name__).info(
+            "Offline mode is on: PostHog error reporting stays disabled"
+        )
         return None
 
     from posthog import Posthog

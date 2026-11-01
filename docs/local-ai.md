@@ -50,6 +50,74 @@ ALLOW_HOSTED_AI=true
 LLM=openai:gpt-5.2      # plus OPENAI_API_KEY
 ```
 
+## Windows: making native Ollama reachable from Docker
+
+This is the single most common setup failure on Windows 11, and `ollama list`
+working in PowerShell does **not** prove the containers can use it.
+
+**Why it fails.** Ollama binds `127.0.0.1:11434` by default. Inside a container,
+`127.0.0.1` is the container itself, so the backend and both workers get
+"connection refused". They reach the host as `host.docker.internal`, which is the
+host's vEthernet address — a different interface from the loopback one Ollama is
+listening on.
+
+**Fix A — native Ollama (recommended).** Bind it to all host interfaces and
+allow the port *only* from the Docker subnet:
+
+```powershell
+# 1. See what is actually happening (read-only)
+powershell -ExecutionPolicy Bypass -File scripts\setup-ollama-windows.ps1 -Check
+
+# 2. Apply: OLLAMA_HOST, restart Ollama, scoped firewall rule
+#    The firewall step needs an elevated PowerShell window.
+powershell -ExecutionPolicy Bypass -File scripts\setup-ollama-windows.ps1 -Configure
+```
+
+What `-Configure` does, and what it deliberately does not:
+
+| Step | Effect |
+|---|---|
+| `setx OLLAMA_HOST 0.0.0.0:11434` (user scope) | Ollama listens on the vEthernet interface too |
+| Restart `ollama app` / `ollama serve` | Picks up the new bind address |
+| One inbound rule, TCP 11434, **Private profile**, remote addresses limited to the Docker/WSL subnet (`vEthernet (WSL)` / `(Default Switch)`, falling back to RFC1918 ranges) | Containers can connect; the internet cannot |
+| Public/Domain profiles, `Any` remote address, port-forwarding, `netsh` exposure | **Never touched** |
+
+Undo with `-RemoveFirewallRule`. Manual equivalent:
+
+```powershell
+setx OLLAMA_HOST 0.0.0.0:11434
+# restart Ollama from the tray, then (elevated):
+New-NetFirewallRule -DisplayName "ClipWright Studio - Ollama for Docker" `
+  -Direction Inbound -Action Allow -Protocol TCP -LocalPort 11434 `
+  -Profile Private -RemoteAddress 172.16.0.0/12
+```
+
+**Fix B — Ollama inside Docker (nothing exposed on the host).**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-ollama-windows.ps1 -UseDockerOllama
+```
+
+That starts the `ollama` compose profile (models persist in `./data/ollama`,
+port published only on `127.0.0.1`), pulls `llama3.2:3b` inside the container and
+writes `OLLAMA_BASE_URL=http://ollama:11434/v1` to `.env`. If native Ollama
+already owns port 11434, publish the compose service elsewhere:
+`OLLAMA_HOST_PORT=11435 docker compose --profile ollama up -d ollama`.
+
+**Prove it from inside the containers** — host checks are not evidence:
+
+```bash
+python scripts/verify_local_ai.py                      # all services at once
+docker compose exec -T backend   .venv/bin/python -m src.local_ai --check
+docker compose exec -T worker    .venv/bin/python -m src.local_ai --check
+docker compose exec -T ai-worker .venv/bin/python -m src.local_ai --check
+```
+
+Each command prints one row per component (Whisper checkpoint, checkpoint
+readable, Ollama reachable, model installed, FFmpeg, uploads/clips/models
+mounts) and exits non-zero naming the failing component, e.g.
+`worker: ollama_reachable`.
+
 ## The Offline Mode switch
 
 `OFFLINE_MODE` in `.env` is the deploy default. **Settings → Offline & local AI**
@@ -72,6 +140,26 @@ anything anywhere right now" should not require editing files and restarting:
 
 The identical `.env` route still works for headless installs — set
 `OFFLINE_MODE=false` and `ALLOW_HOSTED_AI=true`, restart, done.
+
+### Offline mode is also a privacy switch
+
+While offline mode is on, ClipWright Studio does not contact any analytics or
+error-reporting service:
+
+| Integration | Offline behaviour | Gate |
+|---|---|---|
+| DataFast | Script and queue not rendered; `track`/`identify` return immediately | layout decision + `data-analytics` attribute |
+| Tilly | Script not rendered; goals not sent | same |
+| PostHog browser SDK | Never initialised, so no events and **no session replay** | `instrumentation-client.ts` checks the server marker |
+| PostHog server SDK (errors) | Client never created; request errors are not shipped | `getPostHogServer()` returns `null` |
+| PostHog Python (backend) | Exception handler not attached | `get_posthog_client()` returns `None` |
+| DataFast/PostHog reverse proxies (`/js/script.js`, `/api/events`, `/ingest/*`) | Rewrites are not registered at all | `next.config.ts` |
+| Campaign attribution | Local capture skipped entirely | layout |
+
+The decision is made per request and re-read from the same
+`offline-mode.json` file the Settings switch writes, so flipping the switch
+applies on the next page load — no rebuild, no restart. Turning offline mode
+off is itself the deliberate opt-in; nothing is sent until that happens.
 
 ## Docker networking to Ollama
 

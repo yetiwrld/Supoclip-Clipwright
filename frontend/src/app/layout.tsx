@@ -12,6 +12,8 @@ import { FeedbackButton } from "@/components/feedback-button";
 import { PostHogIdentity } from "@/components/posthog-identity";
 import { ThemeProvider } from "@/components/theme-provider";
 import { intlLocale } from "@/i18n/config";
+import { ANALYTICS_ATTR } from "@/lib/analytics-gate";
+import { analyticsDecision, isOfflineMode } from "@/lib/offline-mode";
 import { getSiteUrl } from "@/lib/site";
 import { BRAND_FAVICON, BRAND_ICON_180, BRAND_ICON_192, BRAND_ICON_32, BRAND_ICON_512, BRAND_NAME } from "@/lib/brand";
 
@@ -34,7 +36,6 @@ const syne = Syne({
 const dataFastWebsiteId = process.env.NEXT_PUBLIC_DATAFAST_WEBSITE_ID;
 const dataFastDomain = process.env.NEXT_PUBLIC_DATAFAST_DOMAIN;
 const shouldTrackLocalhost = process.env.NEXT_PUBLIC_DATAFAST_ALLOW_LOCALHOST === "true";
-const isDataFastEnabled = Boolean(dataFastWebsiteId && dataFastDomain);
 // Tilly analytics runs next to DataFast; it only uses its own cookies and window.tilly.
 const tillyWebsiteId = process.env.NEXT_PUBLIC_TILLY_WEBSITE_ID;
 
@@ -101,10 +102,25 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
 
+  // Offline mode is a privacy setting, not just an AI switch: while it is on,
+  // no analytics script is rendered, no goal is sent, no session is recorded and
+  // errors stay on this machine. The decision is re-evaluated per request, so
+  // flipping the switch in Settings takes effect on the next page load.
+  const analytics = analyticsDecision();
+  const offlineMode = isOfflineMode();
+  const isDataFastEnabled = analytics.allowed && Boolean(dataFastWebsiteId && dataFastDomain);
+  const isTillyEnabled = analytics.allowed && Boolean(tillyWebsiteId);
+
   // Dark is the product default: the class is present before hydration so
   // there is no white flash. next-themes keeps the user's saved choice.
   return (
-    <html lang={intlLocale(locale)} className="dark" suppressHydrationWarning>
+    <html
+      lang={intlLocale(locale)}
+      className="dark"
+      {...{ [ANALYTICS_ATTR]: analytics.allowed ? "on" : undefined }}
+      data-offline-mode={offlineMode ? "on" : "off"}
+      suppressHydrationWarning
+    >
       <head>
         {isDataFastEnabled ? (
           <>
@@ -125,7 +141,7 @@ export default async function RootLayout({
             />
           </>
         ) : null}
-        {tillyWebsiteId ? (
+        {isTillyEnabled ? (
           <>
             <Script id="tilly-queue" strategy="beforeInteractive">
               {`window.tilly = window.tilly || function() {
@@ -148,9 +164,14 @@ export default async function RootLayout({
           <NextIntlClientProvider locale={locale} messages={messages}>
             <TooltipProvider>
               {children}
-              <DataFastIdentity />
-              <PostHogIdentity />
-              <AttributionTracker />
+              {analytics.allowed ? (
+                <>
+                  <DataFastIdentity />
+                  <PostHogIdentity />
+                </>
+              ) : null}
+              {/* First-party campaign storage; skipped entirely while offline. */}
+              {offlineMode ? null : <AttributionTracker />}
               <FeedbackButton />
               <Toaster />
             </TooltipProvider>

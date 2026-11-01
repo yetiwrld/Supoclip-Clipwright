@@ -157,3 +157,29 @@ def test_status_payload_reports_the_switch(config_dir, monkeypatch):
     assert status["hosted_ai_available"] is False
     assert status["local_only"] is True
     assert status["offline_mode_state_path"].endswith(offline_mode.FILE_NAME)
+
+
+# ---------------------------------------------------------------------------
+# Offline mode is a privacy switch: no third-party telemetry while it is on.
+# ---------------------------------------------------------------------------
+
+
+def test_posthog_client_is_disabled_in_offline_mode(config_dir, monkeypatch):
+    from src import observability
+
+    monkeypatch.setenv("OFFLINE_MODE", "true")
+    monkeypatch.setenv("POSTHOG_PROJECT_TOKEN", "phc_test_token")
+    observability._posthog_client = None
+
+    assert observability.get_posthog_client() is None
+
+
+def test_posthog_client_still_requires_a_token_online(config_dir, monkeypatch):
+    from src import observability
+
+    offline_mode.write_override(False)
+    monkeypatch.setenv("ALLOW_HOSTED_AI", "false")
+    monkeypatch.delenv("POSTHOG_PROJECT_TOKEN", raising=False)
+    observability._posthog_client = None
+
+    assert observability.get_posthog_client() is None

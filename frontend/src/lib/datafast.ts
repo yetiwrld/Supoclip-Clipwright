@@ -1,5 +1,7 @@
 "use client";
 
+import { isClientAnalyticsAllowed } from "@/lib/analytics-gate";
+
 type DataFastValue =
   | string
   | number
@@ -84,7 +86,8 @@ const sanitizeGoalName = (goalName: string) =>
     .slice(0, 64);
 
 export function track(goalName: string, metadata?: DataFastMetadata) {
-  if (!isClient()) {
+  // Offline mode: no goal leaves the browser, DataFast or Tilly.
+  if (!isClient() || !isClientAnalyticsAllowed()) {
     return;
   }
 
@@ -109,7 +112,7 @@ export function track(goalName: string, metadata?: DataFastMetadata) {
 }
 
 export function identify(metadata: DataFastIdentifyPayload) {
-  if (!isClient() || !isDataFastConfigured || !window.datafast) {
+  if (!isClient() || !isClientAnalyticsAllowed() || !isDataFastConfigured || !window.datafast) {
     return;
   }
 

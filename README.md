@@ -107,20 +107,43 @@ The app is at <http://localhost:3107>, the API at <http://localhost:8000>
 
 ## Verify the local models
 
+Host checks alone do not prove the containers can use the models — they have
+their own network namespace and mounts. Run the checks **inside** each service:
+
 ```bash
-# One-shot report: Docker, FFmpeg, Ollama, model presence, backend health
+# All three services at once, one row per component, names the failing one
+python scripts/verify_local_ai.py
+
+# Individually (same output, per container)
+docker compose exec -T backend   .venv/bin/python -m src.local_ai --check
+docker compose exec -T worker    .venv/bin/python -m src.local_ai --check
+docker compose exec -T ai-worker .venv/bin/python -m src.local_ai --check
+```
+
+```bash
+# Host-side summary: Docker, FFmpeg, Ollama, model presence, container probe
 python scripts/setup_local_ai.py --check
 
 # What Ollama actually has
 ollama list
 
-# What the running backend sees (live probe, same call the Settings panel makes)
-curl http://localhost:8000/local-ai/status
-
 # Whisper checkpoint on disk
 dir data\models\whisper     # Windows
 ls -lh data/models/whisper  # macOS/Linux
 ```
+
+On Windows, if `ollama list` works but the containers report
+`ollama_reachable: FAIL`, Ollama is bound to `127.0.0.1` only:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-ollama-windows.ps1 -Check
+powershell -ExecutionPolicy Bypass -File scripts\setup-ollama-windows.ps1 -Configure
+```
+
+`-Configure` sets `OLLAMA_HOST=0.0.0.0:11434`, restarts Ollama and adds one
+inbound firewall rule scoped to the Docker subnet on the Private profile only.
+`-UseDockerOllama` instead runs Ollama inside Compose with no host exposure.
+Details: [docs/local-ai.md](docs/local-ai.md).
 
 Inside the app: **Settings → Offline & local AI** shows the same values, with a
 red/amber row and the exact command for anything that is missing, plus the
@@ -167,6 +190,16 @@ cd frontend && pnpm lint && pnpm typecheck
 
 `make test` runs backend + frontend. Browser tests (`pnpm test:e2e`) need
 PostgreSQL and a generated Prisma client.
+
+Real local workflow (import → transcribe → analyse → edit → render → export →
+save → reopen), runnable on the machine or inside the backend container:
+
+```bash
+docker compose exec -T backend .venv/bin/python scripts/local_workflow_test.py
+```
+
+It reports model-dependent stages as SKIPPED with the exact reason rather than
+passing them silently.
 
 ## Documentation
 

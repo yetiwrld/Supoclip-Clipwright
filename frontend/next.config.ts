@@ -5,6 +5,11 @@ import { withPostHogConfig } from "@posthog/nextjs-config";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const isPostHogEnabled = Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim());
+// Offline mode also removes the analytics reverse proxies, so even a stale or
+// hand-crafted request cannot reach DataFast or PostHog through this server.
+// The layout re-checks the runtime switch per request; this is the build-time
+// half of the same rule.
+const isAnalyticsProxyEnabled = process.env.OFFLINE_MODE?.trim().toLowerCase() === "false";
 const posthogHost = (process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim() || "https://eu.i.posthog.com").replace(/\/$/, "");
 // PostHog Cloud serves the SDK bundles from a separate assets host.
 const posthogAssetsHost = posthogHost.replace(/^https:\/\/(us|eu)\.i\.posthog\.com$/, "https://$1-assets.i.posthog.com");
@@ -39,6 +44,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   async rewrites() {
+    if (!isAnalyticsProxyEnabled) return [];
     return [
       {
         source: "/js/script.js",

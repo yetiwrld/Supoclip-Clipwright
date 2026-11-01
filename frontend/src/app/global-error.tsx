@@ -4,12 +4,13 @@ import { useEffect } from "react";
 import posthog from "posthog-js";
 
 import "./globals.css";
-import { isPostHogEnabled } from "@/lib/posthog";
+import { isClientAnalyticsEnabled } from "@/lib/posthog";
 
 // Replaces the root layout when it crashes, so it can't rely on the intl provider or app chrome.
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    if (isPostHogEnabled) posthog.captureException(error);
+    // Offline mode keeps errors on this machine.
+    if (isClientAnalyticsEnabled()) posthog.captureException(error);
   }, [error]);
 
   return (

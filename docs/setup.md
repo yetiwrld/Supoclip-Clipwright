@@ -130,12 +130,24 @@ values for a production image requires rebuilding the frontend.
 
 ### Verify the local AI stack
 
+Host facts are not enough — the containers have their own network namespace and
+mounts — so readiness is only reported after every running service passes the
+in-container probe:
+
 ```bash
-python scripts/setup_local_ai.py --check      # Docker, FFmpeg, Ollama, models, /health
+python scripts/verify_local_ai.py             # backend + worker + ai-worker matrix
+docker compose exec -T backend .venv/bin/python -m src.local_ai --check
+python scripts/setup_local_ai.py --check      # host tools + the container verdict
 ollama list                                   # llama3.2:3b must be listed
-curl http://localhost:8000/local-ai/status    # live probe from inside the backend
 ls -lh data/models/whisper                    # small.pt must be present
 ```
+
+A failure names the component and the service, for example
+`worker: ollama_reachable — Ollama is not reachable at
+http://host.docker.internal:11434`. On Windows that almost always means Ollama
+is bound to loopback only; see
+[local-ai.md](local-ai.md#windows-making-native-ollama-reachable-from-docker)
+and `scripts/setup-ollama-windows.ps1`.
 
 The same information is rendered in the app under **Settings → Offline & local
 AI**. A ready install shows Ollama reachable, the configured LLM model present,

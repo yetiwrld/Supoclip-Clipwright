@@ -359,6 +359,84 @@ def optional_online_features(config: Optional[Config] = None) -> list[dict[str, 
     ]
 
 
+def _probe_directory(label: str, path: Path) -> dict[str, Any]:
+    """Is this directory mounted, writable and readable *from this process*?
+
+    Each container sees a different filesystem, so this is probed inside the
+    process that will actually write there (backend, worker or ai-worker).
+    """
+    result: dict[str, Any] = {
+        "id": label,
+        "label": label.replace("_", " ").capitalize(),
+        "path": str(path),
+        "ok": False,
+        "exists": path.exists(),
+        "writable": False,
+        "detail": "",
+    }
+    if not result["exists"]:
+        # The app creates its own working directories on first use, so a fresh
+        # install is not a failure. If creation fails, the mount (or its
+        # permissions) is wrong and that is reported instead.
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            result["exists"] = True
+            result["created"] = True
+        except OSError as exc:
+            result["detail"] = (
+                f"{path} is missing and cannot be created ({exc}). Check the "
+                "compose bind mount (CLIPWRIGHT_DATA_DIR) and restart the service."
+            )
+            return result
+    probe = path / f".clipwright-write-probe-{os.getpid()}"
+    try:
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        result["writable"] = True
+        result["ok"] = True
+        result["detail"] = (
+            f"Created and writable at {path}" if result.get("created") else f"Writable at {path}"
+        )
+    except OSError as exc:
+        result["detail"] = f"{path} is mounted but not writable: {exc}"
+    return result
+
+
+def storage_status(config: Optional[Config] = None) -> dict[str, Any]:
+    """Uploads, clips and the model store, as seen from this process."""
+    config = config or get_config()
+    # Renders are written to <TEMP_DIR>/clips (see services/task_service.py and
+    # clip_service.py), which is the /app/clips bind mount in Docker.
+    uploads = Path(getattr(config, "temp_dir", None) or os.getenv("TEMP_DIR", "uploads"))
+    clips = uploads / "clips"
+    models = resolve_models_dir(config)
+    whisper = resolve_whisper_model_dir(config)
+    directories = [
+        _probe_directory("uploads", uploads),
+        _probe_directory("clips", clips),
+        _probe_directory("models", models),
+        _probe_directory("whisper_models", whisper),
+    ]
+    # Whisper needs to read the checkpoint, not just stat it: a half-mounted
+    # file passes is_file() and fails at load time twenty minutes into a job.
+    checkpoint = whisper_model_status(config)
+    readable = False
+    read_error = None
+    if checkpoint["available"]:
+        try:
+            with open(checkpoint["path"], "rb") as handle:
+                readable = bool(handle.read(1024))
+        except OSError as exc:
+            read_error = str(exc)
+    return {
+        "ok": all(entry["ok"] for entry in directories) and readable,
+        "directories": directories,
+        "whisper_checkpoint_readable": readable,
+        "whisper_checkpoint_error": read_error,
+        "whisper_checkpoint": checkpoint,
+    }
+
+
 def preflight_task(config: Optional[Config] = None) -> list[str]:
     """Problems that would make a local clipping job fail, in plain language.
 
@@ -446,3 +524,178 @@ def local_ai_status(config: Optional[Config] = None) -> dict[str, Any]:
             },
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# In-container verification CLI
+# ---------------------------------------------------------------------------
+#
+# Every container has its own network namespace and filesystem, so "Ollama works
+# on the host" proves nothing about the worker. This CLI is meant to be executed
+# *inside* each service:
+#
+#   docker compose exec -T backend   .venv/bin/python -m src.local_ai --check
+#   docker compose exec -T worker    .venv/bin/python -m src.local_ai --check
+#   docker compose exec -T ai-worker .venv/bin/python -m src.local_ai --check
+#
+# It exits non-zero when any required component is unusable, and names the exact
+# component that failed.
+
+
+def probe_components(config: Optional[Config] = None) -> list[dict[str, Any]]:
+    """Every check a service needs to run a job, in reporting order."""
+    config = config or get_config()
+    status = local_ai_status(config)
+    storage = storage_status(config)
+    whisper = status["transcription"]["whisper"]
+    llm = status["llm"]
+    ffmpeg = status["runtime"]["ffmpeg"]
+    provider = status["transcription"]["provider"]
+
+    components: list[dict[str, Any]] = [
+        {
+            "id": "whisper_checkpoint",
+            "label": f"Whisper checkpoint ({whisper['model']})",
+            "ok": bool(whisper["available"]) if provider == "whisper" else True,
+            "detail": (
+                whisper["message"]
+                if not whisper["available"] and provider == "whisper"
+                else f"{whisper['path']} ({whisper['size_mb']} MB)"
+            ),
+            "required": provider == "whisper",
+        },
+        {
+            "id": "whisper_readable",
+            "label": "Whisper checkpoint readable",
+            "ok": bool(storage["whisper_checkpoint_readable"]) if provider == "whisper" else True,
+            "detail": storage["whisper_checkpoint_error"]
+            or (
+                "Readable"
+                if storage["whisper_checkpoint_readable"]
+                else "Checkpoint missing or unreadable from this container"
+            ),
+            "required": provider == "whisper",
+        },
+        {
+            "id": "ollama_reachable",
+            "label": "Ollama reachable from this container",
+            "ok": bool(llm.get("reachable")),
+            "detail": llm.get("message")
+            or f"Reached {llm.get('base_url')} over the container network",
+            "required": llm.get("provider") == "ollama",
+        },
+        {
+            "id": "ollama_model",
+            "label": f"Model installed ({llm.get('model') or 'not set'})",
+            "ok": bool(llm.get("model_available")),
+            "detail": llm.get("message")
+            or f"{llm.get('model')} is installed and usable",
+            "required": llm.get("provider") == "ollama",
+        },
+        {
+            "id": "ffmpeg",
+            "label": "FFmpeg + FFprobe",
+            "ok": bool(ffmpeg["available"]) and bool(ffmpeg.get("ffprobe_available")),
+            "detail": ffmpeg["message"] or ffmpeg["path"],
+            "required": True,
+        },
+    ]
+
+    for directory in storage["directories"]:
+        components.append(
+            {
+                "id": f"storage_{directory['id']}",
+                "label": f"{directory['label']} directory",
+                "ok": directory["ok"],
+                "detail": directory["detail"],
+                "required": True,
+            }
+        )
+
+    components.append(
+        {
+            "id": "offline_mode",
+            "label": "Offline mode",
+            "ok": bool(status["offline_mode"]),
+            "detail": (
+                f"On ({status['offline_mode_source']}); no hosted provider will be contacted"
+                if status["offline_mode"]
+                else "Off",
+            )[0],
+            "required": False,
+        }
+    )
+    return components
+
+
+def verify_exit_code(components: list[dict[str, Any]]) -> int:
+    """0 when every required component is usable, else the count of failures."""
+    return sum(
+        1 for component in components if component.get("required") and not component.get("ok")
+    )
+
+
+def _render_report(service: str, config: Config, components: list[dict[str, Any]]) -> str:
+    lines = [f"ClipWright Studio local-AI verification — service: {service}", ""]
+    width = max(len(component["label"]) for component in components)
+    for component in components:
+        mark = "PASS" if component["ok"] else ("FAIL" if component["required"] else "WARN")
+        lines.append(f"  [{mark}] {component['label'].ljust(width)}  {component['detail']}")
+    failures = verify_exit_code(components)
+    lines.append("")
+    if failures:
+        broken = ", ".join(
+            component["id"]
+            for component in components
+            if component.get("required") and not component.get("ok")
+        )
+        lines.append(f"RESULT: NOT READY — failing component(s): {broken}")
+    else:
+        lines.append("RESULT: READY — this service can transcribe, analyse and render locally")
+    return "\n".join(lines)
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    """`python -m src.local_ai [--check] [--json]` inside a service container."""
+    import argparse
+    import json as json_module
+
+    parser = argparse.ArgumentParser(
+        description="Verify the local AI stack from inside this container or process."
+    )
+    parser.add_argument("--check", action="store_true", help="run every check (default)")
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON")
+    args = parser.parse_args(argv)
+
+    config = get_config()
+    service = os.getenv("SUPOCLIP_SERVICE") or os.getenv("HOSTNAME") or "local"
+    components = probe_components(config)
+    failures = verify_exit_code(components)
+
+    if args.json:
+        print(
+            json_module.dumps(
+                {
+                    "app": "ClipWright Studio",
+                    "service": service,
+                    "ready": failures == 0,
+                    "failing_components": [
+                        component["id"]
+                        for component in components
+                        if component.get("required") and not component.get("ok")
+                    ],
+                    "components": components,
+                    "ollama_base_url": config.resolve_ollama_base_url(),
+                    "llm": config.llm,
+                    "whisper_model": config.whisper_model,
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(_render_report(service, config, components))
+    return 0 if failures == 0 else 1
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised through main()
+    raise SystemExit(main())

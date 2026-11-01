@@ -37,9 +37,14 @@ services:
       - ./frontend/public:/app/public
       - ./frontend/prisma:/app/prisma
       - ./CHANGELOG.md:/app/CHANGELOG.md:ro
+      # Offline-mode switch written by Settings: analytics stay off while it is on.
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/config:/config:ro
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - NEXT_TELEMETRY_DISABLED=1
+      # Offline Mode gates every analytics integration in the frontend too.
+      - OFFLINE_MODE=${OFFLINE_MODE:-true}
+      - CLIPWRIGHT_CONFIG_DIR=/config
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       - BACKEND_INTERNAL_URL=http://backend:8000
       - NEXT_PUBLIC_SELF_HOST=${SELF_HOST:-true}
@@ -541,7 +546,9 @@ services:
     profiles: ["ollama"]
     restart: unless-stopped
     ports:
-      - "127.0.0.1:11434:11434"
+      # Loopback-only. Override the host port when native Ollama already owns
+      # 11434: OLLAMA_HOST_PORT=11435 docker compose --profile ollama up -d ollama
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-11434}:11434"
     volumes:
       # Persistent model store: pulling once is enough across restarts.
       - ${CLIPWRIGHT_DATA_DIR:-./data}/ollama:/root/.ollama

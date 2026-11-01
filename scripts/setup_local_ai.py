@@ -267,6 +267,47 @@ def check_backend_status() -> tuple[bool, str]:
         return False, f"Backend not reachable at {base} ({exc})"
 
 
+def run_container_verification() -> tuple[bool | None, str]:
+    """Run scripts/verify_local_ai.py and summarize it.
+
+    Returns (ok, detail) where ok is None when the stack is not running, which
+    must never be reported as "ready".
+    """
+    script = REPO_ROOT / "scripts" / "verify_local_ai.py"
+    if not script.exists():
+        return None, "scripts/verify_local_ai.py is missing; cannot verify the containers"
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script), "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return None, f"container verification could not run ({exc})"
+    if result.returncode == 2:
+        return None, "Docker Compose is not running; containers were not verified"
+    try:
+        payload = json.loads(result.stdout[result.stdout.index("{"):])
+    except (ValueError, json.JSONDecodeError):
+        return False, "container verification produced no readable report"
+    if payload.get("skipped"):
+        return False, f"services not running: {', '.join(payload['skipped'])}"
+    failing = [
+        f"{report['service']}:{component['id']}"
+        for report in payload.get("services", [])
+        for component in report.get("components", [])
+        if component.get("required", True) and not component.get("ok")
+    ]
+    if failing:
+        return False, "failing inside containers: " + ", ".join(failing)
+    if payload.get("ready"):
+        return True, "backend, worker and ai-worker can all reach Ollama and read Whisper"
+    return False, "one or more containers are not ready"
+
+
 def main(argv: list[str] | None = None) -> int:
     models = load_whisper_models()
     env_path = REPO_ROOT / ".env"
@@ -367,14 +408,31 @@ def main(argv: list[str] | None = None) -> int:
         elif not pull_ollama_model(ollama_model):
             problems += 1
 
+    # ---- container verification ------------------------------------------
+    # Host facts are not enough: the worker containers have their own network
+    # namespace and mounts, so readiness is only claimed once every running
+    # service passes the in-container probe.
+    containers_ok, containers_detail = run_container_verification()
+    symbol = {True: OK, False: FAIL, None: WARN}[containers_ok]
+    print(f"{symbol} Containers: {containers_detail}")
+    if containers_ok is None:
+        print("       Start the stack (docker compose up -d), then run:")
+        print("       python scripts/verify_local_ai.py")
+
     # ---- summary ---------------------------------------------------------
-    ready = whisper_ok and model_installed and ffmpeg_ok
+    host_ready = whisper_ok and model_installed and ffmpeg_ok
+    ready = host_ready and containers_ok is True
     print()
     print("=" * 62)
     if ready:
         print(f"{OK} Local AI is ready. Transcription uses Whisper "
               f"'{models.normalize_model_name(whisper_model)}' and analysis uses "
-              f"Ollama '{ollama_model}'.")
+              f"Ollama '{ollama_model}', and every service verified it from inside "
+              f"its container.")
+    elif host_ready and containers_ok is not True:
+        print(f"{WARN} Host checks pass, but offline readiness is NOT proven: the "
+              f"containers have not confirmed access to Whisper and Ollama.")
+        print("       Run: docker compose up -d && python scripts/verify_local_ai.py")
     else:
         print(f"{WARN} Not ready for offline processing yet.")
         if not whisper_ok:
@@ -383,10 +441,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"       Run: ollama pull {ollama_model}")
         if not ffmpeg_ok:
             print("       Install FFmpeg and add it to PATH (Docker images already include it).")
+        if containers_ok is False:
+            print("       Run: python scripts/verify_local_ai.py   (names the failing component)")
     print("       Verify inside the app: Settings -> Offline & local AI.")
     if args.check or not (args.install_whisper or args.pull_ollama_model or args.write_env):
         print("       This was a check only; nothing was downloaded.")
-    return 0 if ready and problems == 0 else 1
+    return 0 if (ready and problems == 0) else 1
 
 
 if __name__ == "__main__":
