@@ -1,0 +1,285 @@
+# Media storage
+
+Set `MEDIA_STORAGE=s3` to store uploaded originals, generated clips, clip timing
+metadata, editor previews, drafts and exports in a private S3 bucket. The default
+`local` mode supports self-hosted installations without AWS. Existing local clip
+paths remain readable alongside new S3 references.
+
+## Configuration
+
+Backend and worker need the same settings:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MEDIA_STORAGE` | `local` | `local` or `s3` |
+| `MEDIA_S3_BUCKET` | empty | Required for S3 mode |
+| `MEDIA_S3_PREFIX` | `media` | Dedicated application prefix |
+| `MEDIA_S3_REGION` | `AWS_REGION` or `eu-north-1` | Bucket region; Compose defaults to `eu-central-1` |
+| `MEDIA_S3_ENDPOINT` | AWS regional endpoint | Optional S3-compatible endpoint reachable by browsers and workers |
+| `MEDIA_S3_ACCESS_KEY_ID` | empty | Optional dedicated media identity |
+| `MEDIA_S3_SECRET_ACCESS_KEY` | empty | Secret for that identity |
+| `MEDIA_S3_SESSION_TOKEN` | empty | Token when using temporary dedicated credentials |
+| `MEDIA_URL_TTL_SECONDS` | `900` | Signed download validity, clamped to 60–3600 seconds |
+| `MEDIA_CACHE_TTL_SECONDS` | `86400` | Expiry of unused local caches, at least four hours |
+| `MEDIA_ORPHAN_GRACE_SECONDS` | `86400` | Minimum age before reclaiming unreferenced objects, at least one day |
+| `MEDIA_UPLOAD_CONCURRENCY` | `3` | Maximum active upload sessions per user, shared across API workers |
+| `MEDIA_UPLOAD_DAILY_LIMIT` | `20` | Maximum upload authorizations per user in a rolling day, including aborted attempts |
+
+When dedicated media keys are omitted, boto3 uses its standard credential chain,
+including workload IAM roles. Browser/CLI login credentials are for administrative
+setup; use a restricted runtime identity for the services. Media keys are separate
+from other service credentials, including SES.
+
+`scripts/setup-media-storage.py` reports its plan by default. With `--apply`, it
+creates a private encrypted bucket, an HTTPS-only bucket policy, browser CORS,
+one-day expiry for unfinished multipart uploads, and a runtime IAM identity scoped
+to the bucket's `media/` prefix. It writes runtime configuration to a new file with
+mode `0600` and never prints key values. It refuses to overwrite an existing secret
+file or create another key for an identity that already has one.
+
+```sh
+aws login
+backend/.venv/bin/python scripts/setup-media-storage.py
+backend/.venv/bin/python scripts/setup-media-storage.py --apply \
+  --credentials-file "$HOME/.config/supoclip/media-storage.env"
+```
+
+Supply every deployed frontend origin with repeated `--origin` arguments if the
+defaults (`https://supoclip.com`, `https://www.supoclip.com`, localhost port 3107)
+do not cover the installation. Keep secrets outside Git. Copy configuration into
+the deployment's secret store or private environment file. Apply backend migrations
+before starting the updated worker.
+
+## Uploads and delivery
+
+The authenticated frontend requests multipart authorization from the backend.
+Browsers PUT 64 MiB parts directly to S3, with up to three concurrent requests,
+then call the authenticated completion endpoint. Object keys include a hash of the
+owning user ID. PostgreSQL records the owner, upload ID, object path and expected
+size before returning authorization. Each part URL signs its exact byte length;
+refresh requests can only renew parts within that recorded size. Completion
+lists every part and rejects the upload unless each part is that signed size,
+then checks the assembled object against the same limit
+(`MAX_VIDEO_UPLOAD_BYTES`, default 4 GB). A direct `/upload` body is counted
+as it arrives, so a missing or spoofed `Content-Length` cannot store more
+than the cap. The backend also
+checks ownership and object size before admitting a task. Failed browser uploads
+are aborted; bucket lifecycle rules catch uploads abandoned by closing a tab.
+Expired part URLs can be refreshed during the session's one-day lifetime without
+restarting the upload. Expired sessions retain their capacity until the worker
+successfully aborts them. Completion is
+retryable after an interrupted response or a temporary validation request failure.
+Uploads authorized before the session-tracking upgrade must be restarted; their
+abort endpoint remains available. Previously issued URLs keep their original
+expiry, and bucket lifecycle cleanup still reclaims abandoned multipart data.
+
+The existing `/upload` endpoint continues to accept REST/MCP uploads, including
+the shipped iOS app, which posts the file to the web app's `/api/upload` route.
+That route streams the body to the API and does not buffer it first. The API
+answers as soon as the file is fsynced under `TEMP_DIR/uploads` and returns
+`upload://{id}.ext`. It does not transcode on this request. In S3 mode the
+original is copied to the bucket after the response, and again at the start of
+processing if that copy has not finished (`Storing upload...` at 12%). The
+local file stays on the shared uploads volume so the worker can read it. Video
+above 1080p or 60 fps is still scaled in the worker (`Preparing video...` at
+15%), and the capped master is stored beside the original.
+
+A retry of the same bytes returns the same `video_path` and does not keep a
+second file or use another daily upload slot. If that local file is gone and
+object storage has no copy, the retry writes the bytes back to that path.
+Clients may send
+`Idempotency-Key` (`8–200` characters: letters, digits, `.`, `_`, `:`, `-`).
+Reusing that key for different bytes is `409`. A later key for the same bytes
+is kept as well, and each earlier key still returns `409` for a different file.
+Creating a task for the same
+upload and the same options (fonts, captions, clip length, cleanup, and so on)
+returns the task that is already queued or processing, or one that completed
+in the last two minutes, and does not enqueue a second job. A lost response
+can be retried safely. Changing an option starts a new task.
+
+### Proxy timeouts
+
+The production nginx config is not in this repo. It runs on the host in front
+of the web and API containers (`docs/observability.md`). A ~2 GB upload that
+has already been accepted by `client_max_body_size` can still fail when
+`proxy_read_timeout` is about 150 seconds, because the proxy is waiting for
+response headers while the body is still moving. On the `www` server, the
+`/api/upload` location (and on the `api` server, `POST /upload`, for clients
+that upload directly) should stream the body and wait long enough to cover a
+slow connection plus the short local fsync:
+
+```nginx
+client_max_body_size 4g;
+client_body_timeout 1h;
+proxy_request_buffering off;
+proxy_read_timeout 1h;
+proxy_send_timeout 1h;
+```
+
+`4g` matches the default `MAX_VIDEO_UPLOAD_BYTES`. Then
+`sudo nginx -t && sudo systemctl reload nginx`. Presigned S3 uploads do not
+pass through these locations; only the small authorize and complete requests do.
+
+Database `file_path` fields contain `s3://bucket/key`, never expiring signed URLs.
+Clip IDs and API routes remain stable. Ownership checks or enabled share tokens
+authorize playback before the API redirects to a signed S3 URL. The frontend
+passes that redirect through without following it using backend authentication
+headers. S3 handles playback, range requests and downloads.
+The MCP downloader follows these redirects explicitly, strips backend credentials
+for storage requests, and replaces a local download only after a successful stream.
+Download buttons request an attachment disposition; playback remains inline.
+
+## Processing and retention
+
+FFmpeg uses temporary local copies. Uploaded originals remain in S3 while a task
+references them, so regeneration and caption editing can retrieve them later.
+Sources above 1080p or 60 fps are scaled down in the worker before transcription.
+The original object stays; the capped file is stored beside it as
+`{stem}.capped.mp4` and is what later jobs download, so the same upload is not
+transcoded on every edit.
+YouTube downloads are removed after processing and edits; subsequent edits can
+download them again. Word timings for uploaded sources and clips are retained.
+YouTube word timings are also backed up under `media/transcripts/` and restored
+on later downloads; their S3 copy is removed when no task still uses that video.
+
+The worker keeps downloads under `TEMP_DIR/media-cache/`. Renders acquire shared
+file leases; the last renderer releases the downloaded files, including on failure
+or cancellation. Word timings are backed up before transcript analysis; if S3 is
+unavailable, eviction preserves the small timing sidecars for the worker to retry.
+A cache sweeper reclaims leftovers after the cache expiry period.
+Generated local outputs are queued for deletion after their durable database
+reference commits. Preset exports returned directly by the synchronous
+`GET .../export` route are removed after the response finishes. Queued preset
+exports (`POST .../exports`) are stored under `media/exports/{export_id}.mp4`
+in the same bucket, or under `TEMP_DIR/clip-exports/{export_id}/` when object
+storage is off. Those files are deleted after 7 days, and sooner when the clip
+or task is deleted. The worker's existing media cleanup cron does that deletion.
+
+Editor assets and changed draft/job documents are copied to S3. Unchanged media is
+not uploaded on every draft save. Missing local editor assets can be restored from
+S3. Unused, successfully uploaded local editor videos expire from the cache; drafts
+remain available. The API and worker still share `TEMP_DIR` for operational editor
+state, file locks, progress and cancellation. This change does not remove that
+coordination requirement for an installation with multiple hosts.
+Exports become downloadable after rendering and their S3 upload finish. Autosave
+returns the committed local revision even if its snapshot upload fails; the worker
+retries changed draft snapshots and unfinished asset uploads. Autosave uses the
+draft's file lock and revision check, so clip renders do not block it. Complete
+local editor state remains usable during an S3 outage. Processing caches keep durable source references,
+and readers of older materialized cache paths also acquire file leases.
+
+Deleting/replacing clips queues their previous files, sidecars and obsolete editor
+directories in PostgreSQL in the same transaction. Deleting a task also queues
+its uploaded source. Every five minutes the worker processes committed deletions,
+checks that no live records still reference the file, and retries failed deletions.
+Individual failures back off without blocking unrelated deletion requests.
+Uploaded sources shared by multiple tasks are removed after the last task is
+deleted. A source lock serializes new S3 task admission with source deletion.
+
+Every six hours the worker queues old unreferenced local/S3 media for deletion.
+This catches abandoned completed uploads, outputs from rolled-back/interrupted
+jobs, old YouTube media and deleted-account leftovers. Live clips and editor drafts
+are excluded. There is no bucket-wide expiry rule for active originals or clips.
+The one-day orphan grace period is longer than the worker's three-hour job timeout.
+
+## Independent R2 fallback
+
+S3 can remain the primary store while a private, independently billed R2 bucket
+holds replicas. Set all of `MEDIA_FALLBACK_BUCKET`, `MEDIA_FALLBACK_ENDPOINT`,
+`MEDIA_FALLBACK_ACCESS_KEY_ID` and `MEDIA_FALLBACK_SECRET_ACCESS_KEY` on both API
+and worker. `MEDIA_FALLBACK_REGION` defaults to `auto`. EU-jurisdiction buckets
+must use the EU endpoint shown in Cloudflare, not the global endpoint. Keep the
+bucket private; give its runtime token object read/write permission on that
+bucket only. Configure browser CORS for the same frontend origins and methods
+as the primary bucket. Do not change existing database `s3://` references.
+
+With credentials present, new server uploads are copied to both stores. The
+shared `TEMP_DIR/media-replication/` outbox fsyncs each payload before attempting
+delivery. An upload succeeds when at least one provider accepts it, retaining a
+durable local copy until the second provider catches up. If both fail the caller
+receives an error, but completed output stays in the outbox for retry. Keep space
+available on the shared volume; replication never silently drops files to make
+room. Both stores receive deletions, with durable tombstones preventing a queued
+upload from recreating a deleted file. Per-object file locks serialize revisions.
+
+Backfill all existing objects before enabling read failover:
+
+```sh
+cd backend
+.venv/bin/python scripts/mirror_media.py
+.venv/bin/python scripts/mirror_media.py --apply --verify --workers 2
+```
+
+The script prioritizes final clips and originals, preserves source metadata,
+never rewrites AWS originals, and fully reads each target to check its SHA-256.
+It is restartable. Re-run it for objects changed during the initial migration.
+Copies incur AWS outbound transfer charges plus R2 storage/operation charges.
+Do not use an on-demand migration alone as an outage fallback: an object not yet
+copied still depends on AWS being accessible.
+
+After verifying the backfill, set `MEDIA_FAILOVER_ENABLED=true`. Playback and
+download signing now checks object access before redirecting; a rejected primary
+request selects the R2 copy. Worker reads also fall back, preserving regeneration
+and editing during an AWS outage. A recent failed AWS probe prefers healthy R2
+immediately, avoiding repeated AWS timeouts; independent minute probes restore
+primary preference after recovery. Pending revisions still take priority over
+provider health so older drafts cannot replace newer ones.
+Browser multipart sessions select one provider
+at creation and retain it for part signing, completion and abort. Completed
+browser uploads enter the retry queue for mirroring without making the completion
+request wait for an entire second upload. New uploads can select R2 when AWS is
+unavailable. An interrupted multipart session must be restarted if its selected
+provider becomes unavailable mid-upload.
+
+The worker retries pending replicas every minute and probes both stores every
+minute with an upload, read, signed browser-style GET and deletion. The public
+`GET /health/storage` endpoint reads the cached result, performs no writes, and
+returns 503 for a failed provider, pending replication, or a probe older than
+three minutes. It remains separate from liveness so a provider outage doesn't
+cause pointless container restarts. Monitor this endpoint externally; the worker
+also logs degraded results. A healthy web/Redis/database check alone does not
+prove that video delivery works.
+
+Rollback delivery with `MEDIA_FAILOVER_ENABLED=false` while keeping replication
+credentials configured. Before removing fallback credentials entirely, ensure
+the outbox is drained and AWS has every object written during failover. Never
+discard the outbox as cache, and retain normal account-deletion processing.
+
+## Migrating existing local files
+
+Back up PostgreSQL and drain processing/editor jobs first. Run the migration from
+the backend directory with the deployment's database, S3 and `TEMP_DIR` settings:
+
+```sh
+.venv/bin/python scripts/migrate_media_to_s3.py
+.venv/bin/python scripts/migrate_media_to_s3.py --apply
+```
+
+The default reports counts without transferring/deleting files. Apply mode uploads
+referenced clips and their timing metadata, snapshots existing editor directories,
+updates file references while preserving clip IDs, and queues obsolete local files
+for deletion after commit, held under the printed `cleanup_token`. It also transfers uploaded originals and updates source
+URLs and persisted retry metadata. Active tasks, missing files and historical
+sources shared across different owners, oversized originals and invalid historical
+source references are skipped and counted. Those skipped
+uploads need an ownership decision before migration. The script is restartable:
+already migrated S3 references are skipped.
+Use `--task-id TASK_ID` to migrate one task first and verify its playback and edits.
+
+New tasks may rebuild their transcript-analysis cache after the source URL changes;
+the uploaded word-timing sidecar is preserved. Check playback, editing and a
+regeneration, then release each verified batch explicitly:
+
+```sh
+.venv/bin/python scripts/migrate_media_to_s3.py --release-cleanup CLEANUP_TOKEN
+```
+
+The cleanup worker and orphan sweeper preserve held files until release. Each
+apply run prints its token before transferring files, including if a later step
+fails. The new recovery migration adds retry fields to installations that already
+applied the first storage migration; run pending backend migrations before startup.
+
+Rollback the application storage mode to `local` while retaining the S3 bucket
+configuration and runtime credentials: existing S3 clip/source references still need them. Restoring a
+database backup after local files have been removed requires restoring those files
+or migrating their references again.

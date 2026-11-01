@@ -1,0 +1,198 @@
+import json
+from types import SimpleNamespace
+
+import pytest
+
+from src.services import video_service as video_service_module
+from src.services.video_service import VideoService, resolve_upload_for_edit
+
+
+class _EmptyAnalysis:
+    summary = "No strong standalone segment found"
+    key_topics = []
+    most_relevant_segments = []
+
+
+@pytest.mark.asyncio
+async def test_process_video_complete_uses_fallback_when_ai_selects_no_segments(
+    monkeypatch, tmp_path
+):
+    video_path = tmp_path / "source.mp4"
+    video_path.write_bytes(b"placeholder")
+
+    config = SimpleNamespace(
+        max_video_duration=5400,
+        clip_duration=30,
+        max_clips=10,
+        fast_mode_max_clips=4,
+    )
+    monkeypatch.setattr(video_service_module, "get_config", lambda: config)
+    monkeypatch.setattr(
+        VideoService,
+        "resolve_local_video_path",
+        staticmethod(lambda _url: video_path),
+    )
+    monkeypatch.setattr(
+        VideoService,
+        "_get_file_duration",
+        staticmethod(lambda _path: 42.0),
+    )
+
+    async def fake_generate_transcript(
+        _video_path, processing_mode="balanced", source_url=None
+    ):
+        return "[00:00 - 00:01] hello"
+
+    async def fake_analyze_transcript(_transcript, clip_signals=None, performance_context=None, clip_length="auto"):
+        return _EmptyAnalysis()
+
+    async def fake_run_in_thread(_func, *_args, **_kwargs):
+        if _func == VideoService._drop_static_segments:
+            return _args[1]
+        return None
+
+    monkeypatch.setattr(
+        VideoService,
+        "generate_transcript",
+        staticmethod(fake_generate_transcript),
+    )
+    monkeypatch.setattr(
+        VideoService,
+        "analyze_transcript",
+        staticmethod(fake_analyze_transcript),
+    )
+    monkeypatch.setattr(video_service_module, "run_in_thread", fake_run_in_thread)
+
+    result = await VideoService.process_video_complete(
+        url="upload://source.mp4",
+        source_type="video_url",
+        processing_mode="fast",
+    )
+
+    assert result["segments_to_render"] == [
+        {
+            "start_time": "00:00",
+            "end_time": "00:30",
+            "text": "[00:00 - 00:01] hello",
+            "relevance_score": 0.25,
+            "reasoning": (
+                "AI analysis did not identify a strong standalone segment, "
+                "so SupoClip generated the first available portion of the video."
+            ),
+            "virality_score": 0,
+            "hook_score": 0,
+            "engagement_score": 0,
+            "value_score": 0,
+            "shareability_score": 0,
+            "hook_type": "fallback",
+            "hook_title": None,
+        }
+    ]
+    analysis = json.loads(result["analysis_json"])
+    assert analysis["most_relevant_segments"] == result["segments_to_render"]
+
+
+def test_fallback_segment_caps_to_video_duration():
+    segment = VideoService._build_fallback_segment(
+        video_duration=12.0,
+        transcript="short transcript",
+        target_duration=30,
+    )
+
+    assert segment["start_time"] == "00:00"
+    assert segment["end_time"] == "00:12"
+    assert segment["hook_type"] == "fallback"
+
+
+@pytest.mark.asyncio
+async def test_cached_text_regenerates_missing_word_timings(monkeypatch, tmp_path):
+    from unittest.mock import AsyncMock
+    from src.config import Config
+    source = tmp_path / "source.mp4"
+    source.touch()
+    monkeypatch.setattr(video_service_module, "get_config", Config)
+    monkeypatch.setattr(VideoService, "resolve_local_video_path", lambda _: source)
+    monkeypatch.setattr(VideoService, "_get_file_duration", lambda _: 19)
+    monkeypatch.setattr(video_service_module, "load_cached_transcript_data", lambda _: None)
+    transcribe = AsyncMock(return_value="Restored transcript")
+    monkeypatch.setattr(VideoService, "generate_transcript", transcribe)
+    analysis = json.dumps({"most_relevant_segments": [{"start_time": "00:00", "end_time": "00:17", "text": "Cached segment"}], "summary": "Test", "key_topics": []})
+    await VideoService.process_video_complete(url="upload://source.mp4", source_type="video_url", cached_transcript="Cached transcript", cached_analysis_json=analysis)
+    transcribe.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_picture_review_backfills_before_enforcing_one_clip_limit(monkeypatch, tmp_path):
+    source = tmp_path / "source.mp4"
+    source.touch()
+    source.with_suffix(".transcript_cache.json").write_text(json.dumps({"words": [{"text": "A", "start": 0, "end": 100}]}))
+    monkeypatch.setattr(video_service_module, "get_config", lambda: SimpleNamespace(max_video_duration=5400, clip_duration=30, max_clips=1, fast_mode_max_clips=1))
+    monkeypatch.setattr(VideoService, "resolve_local_video_path", staticmethod(lambda _: source))
+    monkeypatch.setattr(VideoService, "_get_file_duration", staticmethod(lambda _: 120))
+    candidates = [{"start_time": "00:00", "end_time": "00:30", "text": "These images cannot be shown."},
+                  {"start_time": "00:50", "end_time": "01:20", "text": "A complete useful explanation."}]
+    seen = []
+    def review(_source, segments):
+        seen.extend(segments)
+        return segments[1:]
+    monkeypatch.setattr(VideoService, "_drop_static_segments", staticmethod(review))
+    monkeypatch.setattr(VideoService, "_refine_segment_openings", staticmethod(lambda s, *_: s))
+    async def threaded(func, *args, **kwargs):
+        return func(*args, **kwargs) if func == VideoService._drop_static_segments else None
+    monkeypatch.setattr(video_service_module, "run_in_thread", threaded)
+    result = await VideoService.process_video_complete(
+        "upload://source.mp4", "video_url", processing_mode="fast", cached_transcript="Existing transcript", cached_analysis_json=json.dumps({"most_relevant_segments": candidates}))
+    assert len(seen) == 2
+    assert len(result["segments_to_render"]) == 1
+    assert result["segments_to_render"][0]["start_time"] == "00:50"
+
+
+@pytest.mark.asyncio
+async def test_resolve_stored_upload_keeps_a_local_file(monkeypatch, tmp_path):
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"video")
+
+    async def fail_materialize(_url):
+        raise AssertionError("durable lookup is unused when the local file exists")
+
+    monkeypatch.setattr(video_service_module, "materialize_stored_upload", fail_materialize)
+    service = VideoService()
+    service.resolve_local_video_path = lambda _url: source
+    assert await service.resolve_stored_upload("upload://source.mp4") == source
+
+
+@pytest.mark.asyncio
+async def test_resolve_stored_upload_uses_the_durable_object(monkeypatch, tmp_path):
+    missing = tmp_path / "missing.mp4"
+    restored = tmp_path / "restored.mp4"
+    restored.write_bytes(b"from-s3")
+
+    async def materialize(url):
+        assert url == "upload://missing.mp4"
+        return restored
+
+    monkeypatch.setattr(video_service_module, "materialize_stored_upload", materialize)
+    service = VideoService()
+    service.resolve_local_video_path = lambda _url: missing
+    assert await service.resolve_stored_upload("upload://missing.mp4") == restored
+
+
+@pytest.mark.asyncio
+async def test_resolve_stored_upload_leaves_s3_urls_on_the_local_resolver(monkeypatch, tmp_path):
+    remote = tmp_path / "remote.mp4"
+
+    async def fail_materialize(_url):
+        raise AssertionError("upload://s3/ is resolved by the storage client")
+
+    monkeypatch.setattr(video_service_module, "materialize_stored_upload", fail_materialize)
+    service = VideoService()
+    service.resolve_local_video_path = lambda _url: remote
+    assert await service.resolve_stored_upload("upload://s3/user/source.mp4") == remote
+
+
+@pytest.mark.asyncio
+async def test_resolve_upload_for_edit_keeps_a_local_only_fake(tmp_path):
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"video")
+    fake = SimpleNamespace(resolve_local_video_path=lambda _url: source)
+    assert await resolve_upload_for_edit(fake, "upload://source.mp4") == source
