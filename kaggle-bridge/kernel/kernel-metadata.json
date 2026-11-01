@@ -1,0 +1,17 @@
+{
+  "id": "<your-kaggle-username>/clipwright-bridge-phase1",
+  "title": "ClipWright Bridge Phase 1",
+  "code_file": "clipwright_worker.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "<your-kaggle-username>/clipwright-bridge-code",
+    "<your-kaggle-username>/clipwright-phase1-input"
+  ],
+  "kernel_sources": [],
+  "competition_sources": []
+}

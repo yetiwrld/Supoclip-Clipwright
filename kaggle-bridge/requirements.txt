@@ -1,0 +1,23 @@
+# Kaggle-side dependencies for the ClipWright processing bridge (Phase 1).
+#
+# Kaggle's Python image already ships CUDA-enabled torch, so torch is NOT pinned
+# here: reinstalling it is the most common way to break GPU support in a kernel.
+# Verify with processor.environment.torch_report() before trusting any timing.
+#
+# Whisper: install openai-whisper ONLY. The production backend also declares the
+# legacy "whisper" distribution, and both install a module named `whisper`;
+# installing both here would make the run non-reproducible. See
+# docs/COMPATIBILITY-NOTES.md.
+openai-whisper==20250625
+
+# Video download (Gate E). No paid services, no proxy pools.
+yt-dlp>=2025.9.5
+
+# Gate C fallback backend: runs the same 3B instruction model directly on the T4
+# when the Ollama daemon is unavailable in the kernel.
+transformers>=4.46
+accelerate>=1.0
+sentencepiece>=0.2
+
+# Tests (manifest + validation). Also installed in CI.
+pytest>=8.0

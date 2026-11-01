@@ -1,0 +1,60 @@
+{
+  "schema_version": "clipwright.kaggle.job/1",
+  "job_id": "phase1-sample-001",
+  "created_at": "2026-11-01T00:00:00+00:00",
+  "source": {
+    "type": "local_file",
+    "filename": "sample-clip-source.mp4",
+    "size_bytes": null,
+    "sha256": null,
+    "notes": "Upload this file in a PRIVATE Kaggle dataset. Leave size_bytes/sha256 null to skip pre-flight verification, or fill them in to make the run refuse a mismatched file."
+  },
+  "processing": {
+    "mode": "gpu",
+    "require_gpu": true,
+    "notes": "require_gpu=true makes the kernel exit when CUDA is unavailable instead of reporting CPU numbers as GPU results."
+  },
+  "transcription": {
+    "enabled": true,
+    "model": "base",
+    "device": "auto",
+    "word_timestamps": true,
+    "language": null,
+    "allow_download": true,
+    "download_root": "/kaggle/working/models/whisper"
+  },
+  "ai": {
+    "enabled": true,
+    "backend": "auto",
+    "model": "llama3.2:3b",
+    "transformers_model": "unsloth/Llama-3.2-3B-Instruct",
+    "base_url": "http://127.0.0.1:11434",
+    "num_ctx": 8192,
+    "max_segments": 5,
+    "temperature": null
+  },
+  "rendering": {
+    "codec": "libx264",
+    "preset": "medium",
+    "crf": 19,
+    "captions": false,
+    "benchmark_nvenc": true,
+    "target": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 30
+    },
+    "mode": "pad"
+  },
+  "outputs": {
+    "write_transcript": true,
+    "write_ai_selection": true,
+    "write_reports": true,
+    "max_clips": 2
+  },
+  "baseline_local": {
+    "status": "not measured",
+    "notes": "Fill this in after running the same source locally on the Ryzen 5 4600U: transcription_seconds, render_seconds, total_seconds. Leave as-is to keep the report honest."
+  },
+  "dry_run": false
+}
