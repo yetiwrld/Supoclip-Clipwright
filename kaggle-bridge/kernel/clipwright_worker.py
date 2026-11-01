@@ -121,17 +121,25 @@ def bootstrap_bridge_path() -> Path:
 BRIDGE_ROOT = bootstrap_bridge_path()
 
 # imported after the sys.path bootstrap above
-from processor import (  # noqa: E402
-    ai_inference,
-    discovery,
-    downloader,
-    environment,
-    manifest,
-    rendering,
-    reporting,
-    transcription,
-    validation,
-)
+try:
+    from processor import (  # noqa: E402
+        ai_inference,
+        dependencies,
+        discovery,
+        downloader,
+        environment,
+        manifest,
+        rendering,
+        reporting,
+        transcription,
+        validation,
+    )
+except ImportError as error:  # stale or partially uploaded code dataset
+    raise SystemExit(
+        f"the mounted code dataset is incomplete: {error}. Re-run scripts/prepare.ps1 "
+        "and re-upload the code dataset (it must contain the whole "
+        "kaggle-bridge/processor package)."
+    ) from error
 
 
 # --------------------------------------------------------------------------- #
@@ -250,6 +258,22 @@ def run(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--job", help="path to a job manifest; auto-detected when omitted")
     parser.add_argument("--output", default=str(OUTPUT_DIR), help="output directory")
     parser.add_argument("--keep-benchmark-clips", action="store_true", help="keep encoder comparison renders")
+    parser.add_argument(
+        "--skip-dependency-bootstrap",
+        action="store_true",
+        help="do not check/install requirements.txt (local runs on a prepared machine)",
+    )
+    parser.add_argument(
+        "--no-install",
+        action="store_true",
+        help="verify dependencies but never run pip (fails when something is missing)",
+    )
+    parser.add_argument(
+        "--install-timeout",
+        type=int,
+        default=dependencies.DEFAULT_INSTALL_TIMEOUT_SECONDS,
+        help="seconds allowed for pip install",
+    )
     args = parser.parse_args(argv)
 
     output_dir = Path(args.output)
@@ -261,17 +285,7 @@ def run(argv: Optional[List[str]] = None) -> int:
     run_notes: List[str] = []
     collector = reporting.BenchmarkCollector()
 
-    # ---- Gate A -----------------------------------------------------------
-    with collector.timer("gate_a_environment") as gate_a:
-        env_report = environment.collect(probe_ffmpeg=True)
-        environment.write_report(output_dir / "environment.json", env_report)
-        gate_a.details = {
-            "cuda_available": env_report.cuda_available,
-            "gpu": (env_report.payload.get("cuda", {}).get("devices") or [{}])[0].get("name"),
-            "problems": env_report.problems,
-        }
-    print(environment.to_markdown(env_report))
-
+    # ---- job manifest -----------------------------------------------------
     job_path = resolve_job_path(args.job)
     print(f"job manifest: {job_path}")
     if job_path.name != "job.json":
@@ -285,6 +299,48 @@ def run(argv: Optional[List[str]] = None) -> int:
     processing = job.get("processing") or {}
     mode = str(processing.get("mode") or "gpu")
     require_gpu = bool(processing.get("require_gpu", True))
+
+    # ---- Gate A0: dependency bootstrap -----------------------------------
+    # A requirements.txt in an attached dataset installs nothing by itself; the
+    # kernel does it here, before anything expensive starts. CUDA and Whisper
+    # provenance are re-checked afterwards, and torch is never installed.
+    dependencies_markdown = ""
+    if args.skip_dependency_bootstrap:
+        print("dependency bootstrap: skipped (--skip-dependency-bootstrap)", file=sys.stderr)
+    else:
+        with collector.timer("gate_a0_dependencies") as dep_phase:
+            dep_report = dependencies.bootstrap(
+                gpu_required=(mode == "gpu" and require_gpu),
+                search_roots=(BRIDGE_ROOT, BRIDGE_ROOT.parent, INPUT_ROOT),
+                install=not args.no_install,
+                timeout=args.install_timeout,
+            )
+            dependencies.write_report(output_dir / "dependencies.json", dep_report)
+            dep_phase.details = {
+                "ok": dep_report.ok,
+                "installed": list(dep_report.install.packages),
+                "problems": dep_report.problems,
+            }
+        dependencies_markdown = dep_report.to_markdown()
+        print(dependencies_markdown)
+        if not dep_report.ok:
+            message = "dependency bootstrap failed — " + "; ".join(dep_report.problems)
+            _write_failure(
+                output_dir, job, None, collector, message, extra_markdown=dependencies_markdown
+            )
+            print(f"FAILED (dependencies): {message}", file=sys.stderr)
+            return 9
+
+    # ---- Gate A -----------------------------------------------------------
+    with collector.timer("gate_a_environment") as gate_a:
+        env_report = environment.collect(probe_ffmpeg=True)
+        environment.write_report(output_dir / "environment.json", env_report)
+        gate_a.details = {
+            "cuda_available": env_report.cuda_available,
+            "gpu": (env_report.payload.get("cuda", {}).get("devices") or [{}])[0].get("name"),
+            "problems": env_report.problems,
+        }
+    print(environment.to_markdown(env_report))
 
     if mode == "gpu" and require_gpu:
         try:
@@ -607,6 +663,7 @@ def _write_failure(
     env_report: Optional[environment.EnvironmentReport],
     collector: reporting.BenchmarkCollector,
     message: str,
+    extra_markdown: str = "",
 ) -> None:
     """Produce the reports a failed run still owes the operator."""
     result = manifest.build_result(
@@ -622,7 +679,8 @@ def _write_failure(
         (output_dir / "REPORT.md").write_text(
             "# ClipWright Kaggle bridge — run report\n\n"
             f"**Failed:** {message}\n\n"
-            + (environment.to_markdown(env_report) if env_report else ""),
+            + (environment.to_markdown(env_report) if env_report else "")
+            + ("\n" + extra_markdown if extra_markdown else ""),
             encoding="utf-8",
         )
     except OSError:

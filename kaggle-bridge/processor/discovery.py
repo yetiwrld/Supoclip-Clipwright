@@ -139,9 +139,24 @@ def find_job_manifest(
     working_dirs: Sequence[os.PathLike | str] = (),
     input_root: Optional[os.PathLike | str] = DEFAULT_INPUT_ROOT,
     max_depth: int = 3,
+    working_depth: int = 0,
     is_valid_job=None,
 ) -> Path:
-    """Return the job manifest path.
+    """Return the single job manifest to run.
+
+    Rules, in order:
+
+    1. An explicit path always wins (and must exist).
+    2. A real ``job.json`` beats the bundled example, whatever the mount order.
+    3. Two or more *valid* ``job.json`` files is an ambiguity error — guessing
+       between them is how the wrong video gets benchmarked.
+    4. ``sample-job.json`` (shipped inside the code dataset) is a fallback only
+       when no real manifest exists.
+
+    Working directories are scanned at ``working_depth`` (0 by default) because
+    the kernel writes its own copy of ``job.json`` into
+    ``/kaggle/working/clipwright-output/``: a recursive scan there would make a
+    second run in the same kernel see its own output as a rival manifest.
 
     ``is_valid_job`` is an optional predicate ``(payload) -> bool`` used to reject
     JSON files that merely look like manifests; the kernel passes a schema check.
@@ -152,50 +167,74 @@ def find_job_manifest(
             raise DiscoveryError(f"job manifest not found: {path}")
         return path
 
-    for directory in working_dirs:
-        candidate = Path(directory) / "job.json"
-        if candidate.is_file():
-            return candidate
+    def usable(path: Path) -> bool:
+        if is_valid_job is None:
+            return True
+        try:
+            return bool(is_valid_job(_load_json(path)))
+        except (OSError, ValueError):
+            return False
 
-    if input_root is None:
-        raise DiscoveryError("no job manifest given and no input root to search")
-
-    root = Path(input_root)
-    if not root.is_dir():
-        raise DiscoveryError(
-            f"no job manifest given and {root} does not exist. Attach a private dataset "
-            "that contains job.json, or copy config/sample-job.json to "
-            f"{DEFAULT_WORKING_ROOT}/job.json."
-        )
-
-    # Three preference tiers, because the code dataset ships config/sample-job.json:
-    # a real job.json must always beat the bundled example, whatever the mount order.
     real: List[Path] = []
     examples: List[Path] = []
     others: List[Path] = []
-    for path in _walk_files(root, max_depth):
-        if path.suffix.lower() != ".json":
-            continue
-        if path.name == "job.json":
-            real.append(path)
-        elif path.name == "sample-job.json":
-            examples.append(path)
-        elif "job" in path.name.lower():
-            others.append(path)
+    searched: List[Path] = []
 
-    for path in real + examples + others:
-        if is_valid_job is None:
-            return path
-        try:
-            if is_valid_job(_load_json(path)):
-                return path
-        except (OSError, ValueError):
-            continue
+    def consider(root: Path, depth: int) -> None:
+        if not root.is_dir():
+            return
+        searched.append(root)
+        for path in _walk_files(root, depth):
+            if (
+                path.suffix.lower() != ".json"
+                or path in real
+                or path in examples
+                or path in others
+            ):
+                continue
+            if path.name == "job.json":
+                real.append(path)
+            elif path.name == "sample-job.json":
+                examples.append(path)
+            elif "job" in path.name.lower():
+                others.append(path)
 
+    for directory in working_dirs:
+        consider(Path(directory), working_depth)
+    if input_root is not None:
+        consider(Path(input_root), max_depth)
+
+    valid_real = [path for path in real if usable(path)]
+    if len(valid_real) == 1:
+        return valid_real[0]
+    if len(valid_real) > 1:
+        raise DiscoveryError(
+            "ambiguous job manifest: found "
+            + str(len(valid_real))
+            + " real job.json files — "
+            + "; ".join(str(path) for path in valid_real)
+            + ". Attach only the input dataset for the run you mean, or pass the "
+            "manifest explicitly (--job <path>) to choose."
+        )
+
+    for group in (examples, others):
+        candidates = [path for path in group if usable(path)]
+        if len(candidates) == 1:
+            return candidates[0]
+        if len(candidates) > 1:
+            raise DiscoveryError(
+                "ambiguous job manifest: found "
+                + str(len(candidates))
+                + " usable example manifests — "
+                + "; ".join(str(path) for path in candidates)
+                + ". Put the job you mean at job.json and pass --job if needed."
+            )
+
+    located = ", ".join(str(path) for path in searched) or "no search roots"
     raise DiscoveryError(
-        f"No job manifest found under {root}. Attach a private dataset containing "
-        "job.json, or place one at "
-        f"{DEFAULT_WORKING_ROOT}/job.json."
+        "No job manifest found. Attach a private dataset containing job.json (searched: "
+        + located
+        + "), or place one at /kaggle/working/job.json."
     )
 
 

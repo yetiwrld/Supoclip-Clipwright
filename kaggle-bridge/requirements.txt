@@ -1,13 +1,23 @@
 # Kaggle-side dependencies for the ClipWright processing bridge (Phase 1).
 #
-# Kaggle's Python image already ships CUDA-enabled torch, so torch is NOT pinned
-# here: reinstalling it is the most common way to break GPU support in a kernel.
+# THIS FILE BY ITSELF INSTALLS NOTHING. Attaching it to a notebook as a dataset
+# does not run pip. The kernel reads it at start-up (processor/dependencies.py),
+# installs only the packages that are missing, and then verifies the result:
+# CUDA, Whisper provenance, the model libraries and the ffmpeg/ffprobe pair. A
+# failure stops the run with exit code 9 and writes dependencies.json.
+#
+# torch is DELIBERATELY absent. Kaggle's Python image ships a CUDA-enabled build,
+# and `pip install torch` (or letting a resolver replace it) is the most common way
+# to lose GPU support in a kernel — every "GPU" timing would then be a CPU timing.
+# The bootstrap refuses to install torch even if it appears here, and compares
+# torch's CUDA build before and after any installation.
 # Verify with processor.environment.torch_report() before trusting any timing.
 #
 # Whisper: install openai-whisper ONLY. The production backend also declares the
 # legacy "whisper" distribution, and both install a module named `whisper`;
 # installing both here would make the run non-reproducible. See
-# docs/COMPATIBILITY-NOTES.md.
+# docs/COMPATIBILITY-NOTES.md. The bootstrap verifies that `import whisper`
+# resolves to openai-whisper and fails if two providers are present.
 openai-whisper==20250625
 
 # Video download (Gate E). No paid services, no proxy pools.
@@ -19,5 +29,12 @@ transformers>=4.46
 accelerate>=1.0
 sentencepiece>=0.2
 
-# Tests (manifest + validation). Also installed in CI.
+# Tests (manifest, discovery, validation, packaging). Installed in CI, not needed
+# during a Kaggle run — the bootstrap installs it only if it is missing, which on
+# Kaggle it always is, so it costs a few seconds on the first run.
 pytest>=8.0
+
+# Provided by the Kaggle image, never installed here:
+#   torch (CUDA build), torchvision, torchaudio
+# Provided by the Kaggle image as binaries, verified but never installed:
+#   ffmpeg, ffprobe

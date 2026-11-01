@@ -36,6 +36,8 @@ Then copy the numbers out of `benchmark.json` (or `REPORT.md`) into the tables.
 | Whisper module (path, provider) | _not measured_ | `environment.json → python.whisper` |
 | ffmpeg (version, encoder list) | _not measured* | `environment.json → ffmpeg` |
 | NVENC usable (1 s test encode) | _not measured_ | `environment.json → ffmpeg.nvenc` |
+| Dependencies installed this run | _not measured_ | `dependencies.json → install` |
+| Bootstrap wall time | _not measured_ | `benchmark.json → phases[gate_a0_dependencies]` |
 | Peak GPU memory | _not measured_ | `benchmark.json → phases[].peak_gpu_memory_mb` |
 
 \* The *only* environment probe that has executed so far is the local sandbox one,

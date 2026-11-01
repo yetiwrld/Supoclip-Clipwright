@@ -23,7 +23,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Optional, Sequence, Tuple
@@ -35,10 +34,18 @@ DEFAULT_TIMEOUT_SECONDS = 90
 
 Runner = Callable[[Sequence[str], int], Tuple[int, str, str]]
 
-_SECRET_PATTERNS = (
-    # Matches JSON (``"key": "abc"``), .env (``KEY=abc``) and header (``Key: abc``).
-    re.compile(r"(?i)(\"?(?:key|token|secret|password)\"?\s*[:=]\s*)\"?[^\s,;\"'}]+"),
-    re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"),
+#: (pattern, replacement) pairs applied in order by :func:`redact`.
+_SECRET_PATTERNS: Tuple[Tuple["re.Pattern[str]", str], ...] = (
+    # Credentials embedded in an index URL, with or without a password:
+    # https://user:token@host/simple and https://token@host/simple
+    (re.compile(r"(?i)(\bhttps?://)[^/\s@]+@"), r"\1<redacted>@"),
+    # JSON (``"key": "abc"``), .env (``KEY=abc``) and header (``Key: abc``) forms.
+    (
+        re.compile(r"(?i)(\"?(?:key|token|secret|password)\"?\s*[:=]\s*)\"?[^\s,;\"'}]+"),
+        r"\1<redacted>",
+    ),
+    # Any remaining opaque token of 32+ characters.
+    (re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"), "<redacted>"),
 )
 
 
@@ -63,11 +70,17 @@ class AuthCheck:
 
 
 def redact(text: str) -> str:
-    """Strip anything that looks like a credential from ``text``."""
+    """Strip anything that looks like a credential from ``text``.
+
+    Covers JSON/``.env``/header forms, 32+ character opaque tokens, and the
+    ``https://user:token@index`` URLs pip prints when it talks to an authenticated
+    package index. Every pattern is applied, in order.
+    """
     if not text:
         return ""
-    cleaned = _SECRET_PATTERNS[0].sub(r"\1<redacted>", text)
-    cleaned = _SECRET_PATTERNS[1].sub("<redacted>", cleaned)
+    cleaned = str(text)
+    for pattern, replacement in _SECRET_PATTERNS:
+        cleaned = pattern.sub(replacement, cleaned)
     return cleaned
 
 

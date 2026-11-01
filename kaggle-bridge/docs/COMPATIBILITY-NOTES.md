@@ -176,7 +176,44 @@ between multiple videos when the declared filename matches none. Every failure
 message lists what was searched. `tests/test_discovery.py` models the mount tree, so
 a layout change in Kaggle surfaces as a failing test rather than a wasted GPU run.
 
+**Manifest precedence**, in order: explicit `--job`; a real `job.json` (in either
+dataset) before the `sample-job.json` shipped inside the code dataset; an explicit
+ambiguity error when two or more valid `job.json` files exist; the bundled example
+only as a last resort (with a logged warning). Runs in `/kaggle/working` are scanned
+at the top level only, because the kernel writes its own copy of `job.json` into
+`/kaggle/working/clipwright-output/` — a recursive scan made a second run in the
+same kernel treat its own output as a competing manifest. That was found by running
+the mock mount three times in a row, not by reading the code.
+
 Still not verifiable here: the exact mount depth Kaggle uses for a *private*
 dataset created through the web UI. The bounded search covers the two shapes seen in
 public examples; the first real run's `environment.json` and log will confirm which
 one applied.
+
+---
+
+## 10. Dependency bootstrap is new behaviour, not a production contract
+
+Production has no equivalent stage: its Docker images are built from a lockfile, so
+"is openai-whisper importable?" is answered at build time. A Kaggle kernel starts
+from a mutable image and a dataset that only *contains* a `requirements.txt`, so the
+bridge installs at run time (`processor/dependencies.py`, Gate A0).
+
+Where it deliberately differs from a naive `pip install -r requirements.txt`:
+
+* **torch is never installed.** The Kaggle image's CUDA build is the only reason the
+  benchmark means anything; a PyPI wheel would replace it. If torch is missing the
+  run fails and says so, rather than "fixing" it.
+* **only missing packages are installed**, with
+  `--upgrade-strategy only-if-needed`, so a warm image is untouched.
+* **verification happens after installation**, including CUDA device count and
+  Whisper provenance. A transitive dependency (openai-whisper pulls torch when it is
+  absent) can still alter the environment; the before/after CUDA comparison turns
+  that into a hard failure instead of a silent CPU run.
+* **install output is redacted** before it is stored or printed; pip prints index
+  URLs, and those can carry a token.
+
+`pytest` is in `requirements.txt` because CI and the dataset share one file; the
+bootstrap installs it in a Kaggle run only because it is missing there. It is not
+used by the pipeline. Splitting the files would be tidier, but a second file is a
+second thing to get out of sync, and the cost is a few seconds once per kernel.

@@ -15,12 +15,14 @@ from pathlib import Path
 import pytest
 
 import processor
-from processor import ai_inference, downloader, environment, manifest, rendering, reporting
+from processor import ai_inference, dependencies, downloader, environment, manifest
+from processor import rendering, reporting
 from processor import transcription, validation
 
 KERNEL = Path(__file__).resolve().parents[1] / "kernel" / "clipwright_worker.py"
 
 MODULES = {
+    "dependencies": dependencies,
     "manifest": manifest,
     "validation": validation,
     "ai_inference": ai_inference,
@@ -142,7 +144,7 @@ def _exit_codes() -> set[int]:
 
 
 def test_kernel_defines_the_documented_exit_codes():
-    assert _exit_codes() == {0, 1, 2, 3, 4, 5, 6, 7, 8}
+    assert _exit_codes() == {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 
 def test_kernel_never_imports_the_production_backend():

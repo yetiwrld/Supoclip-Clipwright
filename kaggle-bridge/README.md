@@ -171,12 +171,28 @@ exactly one machine, once, so the kernel searches and then *verifies*:
 | What | Where it looks | Verified by |
 |---|---|---|
 | the `processor` package | `/kaggle/input/<slug>/kaggle-bridge/`, `/kaggle/input/<slug>/`, one level deeper, `/kaggle/working`, cwd; `BRIDGE_PATH` overrides everything | the directory must contain `processor/__init__.py` |
-| `job.json` | `/kaggle/working/job.json`, cwd, then `/kaggle/input/**/job.json` or `sample-job.json` | the JSON must parse **and** carry `clipwright.kaggle.job/1` |
+| `job.json` | `/kaggle/working/job.json` (top level only), then `/kaggle/input/**/job.json` | the JSON must parse **and** carry `clipwright.kaggle.job/1` |
 | the video | the job's `source.path`, then an exact filename match anywhere under `/kaggle/input`, then a single video | if several videos are mounted and none matches the name, the run **fails and lists them** |
 
 That last row matters: silently picking the first `.mp4` in a mount is how you
 benchmark the wrong file. `source.size_bytes` (written by `prepare.ps1`) also
 disambiguates, and a wrong pick is caught later by the SHA-256 check.
+
+### Manifest precedence
+
+The code dataset ships `config/sample-job.json`, so "first JSON found wins" is not
+good enough — and neither is "alphabetically first dataset wins":
+
+1. an explicit `--job <path>` always wins;
+2. a real `job.json` always beats `sample-job.json`, in either dataset order;
+3. **two or more valid `job.json` files is an ambiguity error** listing each path,
+   because guessing between them is guessing about which video gets processed;
+4. `sample-job.json` is a fallback only when no real manifest exists, and the run
+   logs a warning when it uses one;
+5. only the **top level** of `/kaggle/working` is scanned for a manifest: the kernel
+   writes its own copy of `job.json` into `/kaggle/working/clipwright-output/`, and a
+   recursive scan would make a second run in the same kernel mistake its own output
+   for a rival manifest.
 
 The search is bounded (depth 4), skips `__pycache__`, and does not follow
 symlinks. All of it lives in `processor/discovery.py` and is tested against a fake
@@ -192,12 +208,50 @@ where the defaults (`/kaggle/input`, `/kaggle/working`) are what the notebook se
 
 ---
 
+## 3b. Dependency bootstrap (attaching `requirements.txt` installs nothing)
+
+A `requirements.txt` inside an attached dataset is just a text file: Kaggle runs
+your script, nobody runs `pip install -r`. So the kernel does it, as **Gate A0**,
+before anything expensive starts (`processor/dependencies.py`):
+
+1. **Discover** the attached `requirements.txt` — the code dataset's copy is found
+   first, then anything else mounted. If none is found it falls back to the built-in
+   list compiled into the bridge.
+2. **Check** each requirement: importable? installed version satisfying the pin?
+   Already-present packages are left alone, so a warm image costs seconds.
+3. **Install only what is missing**, with `pip install --no-input
+   --upgrade-strategy only-if-needed`. **torch is never installed** — it is
+   image-provided, and the bootstrap refuses to name it even if the file lists it.
+4. **Verify afterwards**, because "pip said ok" is not a verified GPU:
+   * CUDA is available and the device count is > 0 (re-checked *after* install),
+   * torch's CUDA build is unchanged (if it disappears, the run fails loudly),
+   * `import whisper` resolves to **openai-whisper** and not the legacy package,
+   * transformers, accelerate, sentencepiece and yt-dlp import,
+   * `ffmpeg` and `ffprobe` exist on `PATH` and report a version.
+5. **Report**: `dependencies.json` plus a markdown table in the log and in
+   `REPORT.md`. Any failure stops the run with exit code **9** and names the
+   component — a missing model library, a CPU-only torch, or a missing ffmpeg.
+
+Flags: `--skip-dependency-bootstrap` (local runs on a prepared machine),
+`--no-install` (verify only, fail on anything missing), `--install-timeout`.
+
+Secrets: install output can contain an index URL with an embedded token, so every
+line kept in `dependencies.json` or printed passes through the redactor first.
+
+This was rehearsed end-to-end on a CPU-only box against real PyPI: the bootstrap
+found the mounted `requirements.txt`, installed the missing packages, confirmed
+`whisper` came from `openai-whisper`, and failed the run with exit 9 naming
+`ffmpeg`/`ffprobe` — which is the correct answer on a machine without them.
+
+---
+
 ## 4. What the kernel produces
 
 Everything lands in `/kaggle/working/clipwright-output`:
 
 | File | Contents |
 |---|---|
+| `dependencies.json` | Gate A0: discovered requirements, what was installed, verification checks, problems |
 | `environment.json` | Gate A: GPU, driver, CUDA, torch, Whisper module path, ffmpeg encoders, yt-dlp |
 | `transcript.json` | ClipWright `version: 2` transcript cache — milliseconds, words + utterances |
 | `ai-selection.json` | validated selection, rejected segments, prompt size, attempts |
@@ -211,7 +265,8 @@ Everything lands in `/kaggle/working/clipwright-output`:
 
 Exit codes: `0` all gates passed · `2` GPU required but unavailable · `3` download
 failed · `4` source invalid · `5` input missing/checksum mismatch · `6`
-transcription failed · `7` partial (some gate failed) · `8` self-check failed.
+transcription failed · `7` partial (some gate failed) · `8` self-check failed ·
+`9` dependency bootstrap failed.
 
 ---
 
@@ -250,7 +305,7 @@ cd kaggle-bridge
 python -m pytest tests -q
 ```
 
-197 tests (stdlib only) cover:
+250 tests (stdlib only) cover:
 
 * **manifests** — schema versions, credential-shaped keys/values, path traversal,
   SHA-256 verification;
@@ -259,8 +314,14 @@ python -m pytest tests -q
 * **the selection contract** — JSON extraction from messy replies, defaults,
   coercions, rejection reasons, the production prompt text;
 * **transcript conversion** — seconds→milliseconds, words, confidence defaults;
-* **discovery** — the fake Kubernetes-style mount tree above, including the
+* **discovery** — a fake Kaggle mount tree, manifest precedence (real job beats
+  the bundled example in either dataset order, explicit `--job` wins, two real jobs
+  is an ambiguity error, a second run does not see its own output), and the
   ambiguous-video failure;
+* **dependencies** — requirement parsing, install *only* what is missing, a
+  refusal to install torch, CUDA reappearing/disappearing around an install, legacy
+  Whisper detection, missing ffmpeg/ffprobe, and that no secret survives in the
+  install log;
 * **packaging** — ZIP64 is requested, oversize inputs fail before anything is
   written, caches and symlinks are refused, archives are re-verified;
 * **kernel metadata** — every blocker `push.ps1` enforces, with the shipped
@@ -306,11 +367,15 @@ real run produces `REPORT.md` with measured numbers; copy it into
 
 What *has* been executed, on a CPU-only development box:
 
-* the full test suite above (`python -m pytest tests -q` → **197 passed**);
+* the full test suite above (`python -m pytest tests -q` → **250 passed**);
 * the kernel's Gate A environment report, and its refusal to continue when a GPU
   is required and CUDA is absent (exit code 2);
 * its input-resolution failure paths (missing video → exit 5 with a named file and
   the paths searched);
+* the dependency bootstrap against real PyPI, in a throwaway environment: a real
+  `pip install` of the mounted `requirements.txt`, the whisper-provenance check
+  passing on a genuine `openai-whisper` install, and a clean exit-9 failure naming
+  ffmpeg/ffprobe on a box that has neither;
 * a **mock Kaggle mount rehearsal**: the packaged code dataset extracted to
   `<fake>/input/clipwright-bridge-code/`, the kernel script alone in
   `<fake>/working/`, and `job.json` + a video in

@@ -84,13 +84,30 @@ def test_kernel_finds_job_json_in_the_input_dataset(kaggle_tree):
     assert kernel.resolve_job_path(None) == expected
 
 
-def test_kernel_prefers_a_job_placed_in_the_working_directory(kaggle_tree):
+def test_kernel_uses_a_lone_job_placed_in_the_working_directory(kaggle_tree):
     kernel = load_kernel()
-    input_root = kaggle_tree / "input"
-    write_job(input_root)
     local = kaggle_tree / "working" / "job.json"
     local.write_text(json.dumps({"schema_version": "clipwright.kaggle.job/1"}), encoding="utf-8")
     assert kernel.resolve_job_path(None) == local
+
+
+def test_kernel_refuses_to_guess_between_two_real_jobs(kaggle_tree):
+    kernel = load_kernel()
+    write_job(kaggle_tree / "input")
+    local = kaggle_tree / "working" / "job.json"
+    local.write_text(json.dumps({"schema_version": "clipwright.kaggle.job/1"}), encoding="utf-8")
+    with pytest.raises(SystemExit) as error:
+        kernel.resolve_job_path(None)
+    assert "ambiguous" in str(error.value)
+
+
+def test_kernel_honours_an_explicit_job_path(kaggle_tree):
+    kernel = load_kernel()
+    dataset_job = write_job(kaggle_tree / "input")
+    chosen = kaggle_tree / "working" / "chosen.json"
+    chosen.write_text(json.dumps({"schema_version": "clipwright.kaggle.job/1"}), encoding="utf-8")
+    assert kernel.resolve_job_path(str(chosen)) == chosen
+    assert kernel.resolve_job_path(str(dataset_job)) == dataset_job
 
 
 def test_kernel_finds_the_video_in_the_input_dataset(kaggle_tree):
@@ -143,3 +160,77 @@ def test_kernel_surfaces_discovery_errors_as_system_exit(tmp_path, monkeypatch):
     with pytest.raises(SystemExit) as error:
         load_kernel()
     assert "'processor' package" in str(error.value)
+
+
+# --------------------------------------------------------------------------- #
+# dependency bootstrap wiring
+# --------------------------------------------------------------------------- #
+
+
+def _write_runnable_job(path: Path) -> Path:
+    """A schema-valid job (based on the shipped sample) that stops before rendering."""
+    payload = json.loads((BRIDGE_ROOT / "config" / "sample-job.json").read_text(encoding="utf-8"))
+    payload["job_id"] = "dep-test"
+    payload["source"]["filename"] = "sample.mp4"
+    payload["processing"]["mode"] = "cpu"
+    payload["processing"]["require_gpu"] = False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_kernel_exits_9_when_dependencies_fail(kaggle_tree, monkeypatch, tmp_path):
+    """A failed bootstrap must stop the run before anything expensive starts."""
+    from processor import dependencies
+
+    kernel = load_kernel()
+    job_path = _write_runnable_job(kaggle_tree / "working" / "job.json")
+
+    failing = dependencies.DependencyReport(problems=["cuda_devices: no GPU"], skipped=False)
+    monkeypatch.setattr(dependencies, "bootstrap", lambda **kwargs: failing)
+    monkeypatch.setattr(
+        dependencies, "write_report", lambda path, report: Path(path).write_text("{}", encoding="utf-8")
+    )
+
+    output = tmp_path / "out"
+    code = kernel.run(["--job", str(job_path), "--output", str(output)])
+    assert code == 9
+    result = json.loads((output / "result.json").read_text(encoding="utf-8"))
+    assert result["status"] == "failed"
+    assert "dependency bootstrap failed" in result["error"]["message"]
+    assert (output / "dependencies.json").is_file()
+
+
+def test_kernel_can_skip_the_bootstrap(kaggle_tree, monkeypatch, tmp_path):
+    """--skip-dependency-bootstrap must not touch pip or the probes."""
+    from processor import dependencies
+
+    kernel = load_kernel()
+    job_path = _write_runnable_job(kaggle_tree / "working" / "job.json")
+
+    def explode(**kwargs):  # pragma: no cover - must never run
+        raise AssertionError("bootstrap should be skipped")
+
+    monkeypatch.setattr(dependencies, "bootstrap", explode)
+    output = tmp_path / "out-skip"
+    code = kernel.run(
+        ["--job", str(job_path), "--output", str(output), "--skip-dependency-bootstrap"]
+    )
+    # With no ffmpeg/ffprobe in this environment the run stops at source validation.
+    assert code in (4, 5)
+    assert not (output / "dependencies.json").exists()
+
+
+def test_two_runs_in_one_working_directory_do_not_conflict(kaggle_tree, tmp_path):
+    """The kernel's own output/job.json must not become a rival manifest."""
+    kernel = load_kernel()
+    job_path = _write_runnable_job(kaggle_tree / "input" / "clipwright-phase1-input" / "job.json")
+    output = tmp_path / "out-twice"
+    first = kernel.run(
+        ["--job", str(job_path), "--output", str(output), "--skip-dependency-bootstrap"]
+    )
+    assert (output / "job.json").is_file()
+    # Second run with auto-detection: the dataset job is the only real manifest.
+    second_manifest = kernel.resolve_job_path(None)
+    assert second_manifest == job_path
+    assert first in (4, 5, 6, 7, 8)

@@ -123,13 +123,27 @@ def _write_job(path: Path, schema: str = "clipwright.kaggle.job/1") -> Path:
     return path
 
 
-def test_working_directory_job_wins_over_the_dataset(tmp_path):
+def test_lone_working_directory_job_is_found(tmp_path):
     working = tmp_path / "working"
     input_root = tmp_path / "input"
     expected = _write_job(working / "job.json")
-    _write_job(input_root / "input-dataset" / "job.json")
+    (input_root / "empty-dataset").mkdir(parents=True)
     found = discovery.find_job_manifest(working_dirs=[working], input_root=input_root)
     assert found == expected
+
+
+def test_two_real_jobs_are_an_ambiguity_error(tmp_path):
+    """One in /kaggle/working and one in the dataset is still two real jobs."""
+    working = tmp_path / "working"
+    input_root = tmp_path / "input"
+    first = _write_job(working / "job.json")
+    second = _write_job(input_root / "input-dataset" / "job.json")
+    with pytest.raises(discovery.DiscoveryError) as error:
+        discovery.find_job_manifest(working_dirs=[working], input_root=input_root)
+    message = str(error.value)
+    assert "ambiguous" in message
+    assert str(first) in message and str(second) in message
+    assert "--job" in message
 
 
 def test_finds_job_json_inside_the_input_dataset(tmp_path):
@@ -279,3 +293,77 @@ def test_the_bundled_example_is_still_usable_on_its_own(tmp_path):
         is_valid_job=lambda payload: payload.get("schema_version") == "clipwright.kaggle.job/1",
     )
     assert found == example
+
+
+def test_explicit_job_wins_even_when_two_real_jobs_exist(tmp_path):
+    working = tmp_path / "working"
+    input_root = tmp_path / "input"
+    _write_job(working / "job.json")
+    _write_job(input_root / "input-dataset" / "job.json")
+    chosen = _write_job(tmp_path / "chosen.json")
+    found = discovery.find_job_manifest(
+        explicit=chosen, working_dirs=[working], input_root=input_root
+    )
+    assert found == chosen
+
+
+def test_invalid_stray_job_json_does_not_create_ambiguity(tmp_path):
+    """A job.json that fails the schema check is not a candidate at all."""
+    working = tmp_path / "working"
+    input_root = tmp_path / "input"
+    stray = working / "job.json"
+    stray.parent.mkdir(parents=True)
+    stray.write_text(json.dumps({"schema_version": "someone.else/1"}), encoding="utf-8")
+    expected = _write_job(input_root / "input-dataset" / "job.json")
+    found = discovery.find_job_manifest(
+        working_dirs=[working],
+        input_root=input_root,
+        is_valid_job=lambda payload: payload.get("schema_version") == "clipwright.kaggle.job/1",
+    )
+    assert found == expected
+
+
+def test_real_job_beats_the_example_when_the_input_dataset_sorts_first(tmp_path):
+    """Ordering by directory name must not matter in either direction."""
+    input_root = tmp_path / "input"
+    _write_job(input_root / "aaa-input-dataset" / "sample-job.json")   # sorts first
+    real = _write_job(input_root / "zzz-code-dataset" / "job.json")
+    found = discovery.find_job_manifest(
+        input_root=input_root,
+        is_valid_job=lambda payload: payload.get("schema_version") == "clipwright.kaggle.job/1",
+    )
+    assert found == real
+
+
+def test_multiple_example_manifests_are_an_ambiguity_error(tmp_path):
+    input_root = tmp_path / "input"
+    _write_job(input_root / "dataset-a" / "sample-job.json")
+    _write_job(input_root / "dataset-b" / "sample-job.json")
+    with pytest.raises(discovery.DiscoveryError) as error:
+        discovery.find_job_manifest(
+            input_root=input_root,
+            is_valid_job=lambda payload: payload.get("schema_version") == "clipwright.kaggle.job/1",
+        )
+    assert "ambiguous" in str(error.value)
+
+
+def test_the_kernels_own_output_copy_is_not_a_rival_manifest(tmp_path):
+    """A second run in the same kernel must not see its own job.json output."""
+    working = tmp_path / "working"
+    input_root = tmp_path / "input"
+    expected = _write_job(input_root / "input-dataset" / "job.json")
+    _write_job(working / "clipwright-output" / "job.json")  # written by an earlier run
+    found = discovery.find_job_manifest(working_dirs=[working], input_root=input_root)
+    assert found == expected
+
+
+def test_working_directory_scan_is_shallow_by_default(tmp_path):
+    working = tmp_path / "working"
+    nested = _write_job(working / "some-subdir" / "job.json")
+    (tmp_path / "input").mkdir()
+    with pytest.raises(discovery.DiscoveryError):
+        discovery.find_job_manifest(working_dirs=[working], input_root=tmp_path / "input")
+    found = discovery.find_job_manifest(
+        working_dirs=[working], input_root=tmp_path / "input", working_depth=1
+    )
+    assert found == nested
