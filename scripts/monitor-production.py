@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only SupoClip production health, job, and OpenRouter balance snapshot.
+"""Read-only ClipWright Studio production health, job, and OpenRouter balance snapshot.
 
 Run from this checkout using Python 3. No purchases, job submissions, or service
 changes. API keys are read on the production host and never returned.
@@ -59,7 +59,7 @@ asyncio.run(main())
 def main():
     snapshot={}
     try:
-        with urllib.request.urlopen('https://www.supoclip.com/',timeout=20) as response:
+        with urllib.request.urlopen('http://localhost:3107/',timeout=20) as response:
             snapshot['public_site_status']=response.status
     except Exception as error:
         snapshot['public_site_error']=type(error).__name__

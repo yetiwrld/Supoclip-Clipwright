@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ExternalLink } from "lucide-react";
@@ -10,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { intlLocale } from "@/i18n/config";
 import { readChangelog, type ChangelogCategory } from "@/lib/changelog";
 import { GITHUB_URL, HOSTED_APP_URL, getSiteUrl } from "@/lib/site";
+import { BrandLogo } from "@/components/brand-mark";
 
 const GITHUB_CHANGELOG_URL = `${GITHUB_URL}/blob/main/CHANGELOG.md`;
 
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: t("ogDescription"),
       type: "website",
       url,
-      siteName: "SupoClip",
+      siteName: "ClipWright Studio",
     },
     twitter: {
       card: "summary",
@@ -63,8 +63,8 @@ export default async function ChangelogPage() {
       <header className="border-b bg-background/95">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="SupoClip" width={24} height={24} className="rounded-lg dark:invert" />
-            <span className="font-display text-lg font-bold tracking-tight">SupoClip</span>
+            <BrandLogo size={24} className="rounded-lg" />
+            <span className="font-display text-lg font-bold tracking-tight">ClipWright Studio</span>
           </Link>
           <div className="flex items-center gap-2">
             <a href={HOSTED_APP_URL} target="_blank" rel="noopener noreferrer">

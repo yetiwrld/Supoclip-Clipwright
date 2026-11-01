@@ -1,6 +1,10 @@
 .env.local
 .DS_Store
 __pycache__
+# Python virtualenvs (local test environments, containers)
+.venv/
+.venv-*/
+*/\.venv/
 *.egg-info
 .coverage
 .next/
@@ -25,3 +29,10 @@ docs/youtube-provider-registry*.json
 
 # Local agent checkouts
 .claude/worktrees/
+
+# ClipWright Studio local data: user media, renders and model weights.
+# These are large and machine-specific; they must never be committed.
+/data/
+/data-*/
+/models/
+*.pt

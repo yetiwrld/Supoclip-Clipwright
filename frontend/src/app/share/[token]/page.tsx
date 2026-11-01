@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, Link2Off, Sparkles } from "lucide-react";
 
 import { ClipFocus, ClipTile, type WallClip } from "@/components/app/clip-wall";
@@ -13,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatSupportMessage, parseApiError } from "@/lib/api-error";
 import { intlLocale } from "@/i18n/config";
 import { formatClipDuration } from "@/lib/generations";
+import { BrandLogo } from "@/components/brand-mark";
 
 interface SharedClip {
   id: string;
@@ -86,7 +86,7 @@ export default function SharedGenerationPage() {
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-8">
         <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
-          <Image src="/logo.png" alt="" width={22} height={22} className="size-[22px] dark:invert" priority />{t("brand")}
+          <BrandLogo size={22} priority />{t("brand")}
         </Link>
         <Button asChild size="sm" className="rounded-full">
           <Link href="/"><Sparkles className="size-4" />{t("makeYourOwn")}</Link>

@@ -10,7 +10,7 @@ import { getRelatedMarketingLinks } from "@/lib/marketing-links";
 const HEADINGS: Record<string, "continueExploring" | "keepReading" | "relatedGuides"> = {
   "Continue exploring": "continueExploring",
   "Keep reading": "keepReading",
-  "Related SupoClip guides": "relatedGuides",
+  "Related ClipWright Studio guides": "relatedGuides",
 };
 
 export function RelatedGuides({ href, heading = "Continue exploring" }: { href: string; heading?: string }) {

@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import math
 import os
 
+from . import offline_mode as offline_mode_state
 from .runtime_settings import get_cached_setting, setting_prefers_admin
 
 load_dotenv()
@@ -9,6 +10,12 @@ load_dotenv()
 _config_override = None
 LOCAL_OLLAMA_BASE_URL = "http://localhost:11434/v1"
 DOCKER_OLLAMA_BASE_URL = "http://host.docker.internal:11434/v1"
+# ClipWright Studio is offline-first: these are the defaults every fresh
+# installation gets, and the values the setup script writes into .env.
+DEFAULT_OLLAMA_MODEL = "llama3.2:3b"
+DEFAULT_LLM = f"ollama:{DEFAULT_OLLAMA_MODEL}"
+DEFAULT_TRANSCRIPTION_PROVIDER = "whisper"
+DEFAULT_WHISPER_MODEL = "small"
 
 
 class Config:
@@ -22,9 +29,31 @@ class Config:
         self.ollama_base_url = self._get_runtime_setting("OLLAMA_BASE_URL")
         self.ollama_api_key = self._get_runtime_setting("OLLAMA_API_KEY")
 
-        self.whisper_model = os.getenv("WHISPER_MODEL") or os.getenv("WHISPER_MODEL_SIZE", "base")
+        self.whisper_model = self._normalize_whisper_model(
+            os.getenv("WHISPER_MODEL") or os.getenv("WHISPER_MODEL_SIZE", DEFAULT_WHISPER_MODEL)
+        )
+        # Whisper runs on the CPU by default: AMD Ryzen / integrated Radeon hosts
+        # have no CUDA, and openai-whisper only accelerates on CUDA.
+        self.whisper_device = (os.getenv("WHISPER_DEVICE", "cpu").strip() or "cpu").lower()
+        # Persistent model storage. Models live on the host (or in a Docker
+        # volume) so a container restart never triggers a re-download.
+        self.models_dir = os.getenv("MODELS_DIR", "models").strip() or "models"
+        self.whisper_model_dir = (
+            os.getenv("WHISPER_MODEL_DIR", "").strip()
+            or os.path.join(self.models_dir, "whisper")
+        )
+        # Offline-first mode: no hosted AI provider is ever contacted. The
+        # .env value is the deploy default; Settings can persist a runtime
+        # override (see src/offline_mode.py) without a restart.
+        self.offline_mode_from_env = self._get_bool_env("OFFLINE_MODE", True)
+        self.offline_mode, self.offline_mode_source = offline_mode_state.resolve(
+            self.offline_mode_from_env
+        )
+        # Hosted providers stay available only if the operator opts in AND
+        # offline mode is switched off.
+        self.allow_hosted_ai = self._get_bool_env("ALLOW_HOSTED_AI", False)
         self.transcription_provider = self._normalize_transcription_provider(
-            os.getenv("TRANSCRIPTION_PROVIDER", "assemblyai")
+            os.getenv("TRANSCRIPTION_PROVIDER", DEFAULT_TRANSCRIPTION_PROVIDER)
         )
         # Empty means auto-detect the spoken language; otherwise an AssemblyAI
         # language code such as "es" or "en_us" forces it.
@@ -181,13 +210,14 @@ class Config:
             [
                 "http://localhost:3107",
                 "http://sp.localhost:3107",
+                "http://clipwright.localhost:3107",
             ],
         )
         self.aws_region = self._get_optional_env("AWS_REGION")
         self.aws_access_key_id = self._get_optional_env("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = self._get_optional_env("AWS_SECRET_ACCESS_KEY")
         self.ses_from_email = os.getenv(
-            "SES_FROM_EMAIL", "SupoClip <onboarding@example.com>"
+            "SES_FROM_EMAIL", "ClipWright Studio <onboarding@example.com>"
         )
         self.app_base_url = (
             self._get_optional_env("NEXT_PUBLIC_APP_URL") or "http://localhost:3107"
@@ -325,6 +355,12 @@ class Config:
             "YOUTUBE_DATA_API_KEY": self.youtube_data_api_key,
             "APIFY_API_TOKEN": self.apify_api_token,
             "PEXELS_API_KEY": self.pexels_api_key,
+            # Offline-first switches, so a worker spawned from the API inherits
+            # the same local-only policy as the API process.
+            "OFFLINE_MODE": "true" if self.offline_mode else "false",
+            "ALLOW_HOSTED_AI": "true" if self.allow_hosted_ai else "false",
+            "WHISPER_MODEL_SIZE": self.whisper_model,
+            "WHISPER_MODEL_DIR": self.whisper_model_dir,
         }
 
     @staticmethod
@@ -387,9 +423,17 @@ class Config:
     @staticmethod
     def _normalize_transcription_provider(value: str | None) -> str:
         normalized = (value or "").strip().lower().replace("-", "_")
-        if normalized in ("whisper", "youtube_captions"):
+        if normalized in ("whisper", "youtube_captions", "assemblyai"):
             return normalized
-        return "assemblyai"
+        # Never silently fall back to a hosted transcriber: a typo must not
+        # turn into an upload to AssemblyAI.
+        return DEFAULT_TRANSCRIPTION_PROVIDER
+
+    @staticmethod
+    def _normalize_whisper_model(value: str | None) -> str:
+        normalized = (value or "").strip().lower()
+        aliases = {"large": "large-v3", "turbo": "large-v3-turbo"}
+        return aliases.get(normalized, normalized) or DEFAULT_WHISPER_MODEL
 
     @staticmethod
     def _normalize_transcription_language(value: str | None) -> str:
@@ -423,19 +467,27 @@ class Config:
         return LOCAL_OLLAMA_BASE_URL
 
     def _infer_default_llm(self) -> str:
+        """Pick the default analysis model.
+
+        ClipWright Studio defaults to the local Ollama model. Hosted providers
+        are only chosen when the operator explicitly turns offline mode off and
+        allows hosted AI, which keeps a fresh install fully local.
         """
-        Infer a usable default model based on whichever API key is present.
-        Falls back to Google for backward compatibility.
-        """
-        if self.google_api_key:
-            return "google-gla:gemini-3-flash-preview"
-        if self.openai_api_key:
-            return "openai:gpt-5.2"
-        if self.anthropic_api_key:
-            return "anthropic:claude-4-sonnet"
-        if self.openrouter_api_key:
-            return "openrouter:anthropic/claude-sonnet-5.5"
-        return "google-gla:gemini-3-flash-preview"
+        if not self.offline_mode and self.allow_hosted_ai:
+            if self.google_api_key:
+                return "google-gla:gemini-3-flash-preview"
+            if self.openai_api_key:
+                return "openai:gpt-5.2"
+            if self.anthropic_api_key:
+                return "anthropic:claude-4-sonnet"
+            if self.openrouter_api_key:
+                return "openrouter:anthropic/claude-sonnet-5.5"
+        return DEFAULT_LLM
+
+    @property
+    def hosted_ai_enabled(self) -> bool:
+        """True only when a hosted AI provider may legally be contacted."""
+        return self.allow_hosted_ai and not self.offline_mode
 
 
 def get_config() -> Config:

@@ -1,250 +1,120 @@
-# SupoClip Quick Start Guide
+# ClipWright Studio — Quick Start
 
-Run SupoClip with Docker in just one command!
+Ten minutes from clone to first clip, with no API keys and no internet access
+during processing.
 
 ## Prerequisites
 
-1. **Docker Desktop** installed and running
-2. **API Keys** (get these from the providers):
-   - [AssemblyAI API Key](https://www.assemblyai.com/) (required for transcription)
-   - At least one AI provider:
-      - [OpenAI API Key](https://platform.openai.com/api-keys) (recommended)
-      - [Google AI API Key](https://makersuite.google.com/app/apikey)
-      - [Anthropic API Key](https://console.anthropic.com/)
-      - [Ollama](https://ollama.com/) (local/self-hosted, no API key required for local)
+1. **Docker Desktop** installed and running (Windows 11 Pro: enable WSL 2).
+2. **Ollama** installed — <https://ollama.com/download>. It runs as a normal
+   Windows app, outside Docker.
+3. ~6 GB free disk for images, models and working space.
 
-## Quick Start (Single Command)
+No AI accounts, API keys, credit cards or cloud subscriptions are needed.
+
+## One command
 
 ```bash
 ./start.sh
 ```
 
-That's it! The script will:
-- Check prerequisites
-- Build Docker images
-- Start all services
-- Show you where to access the app
+The script checks Docker, the Whisper model directory and `ollama list`, builds
+the images, starts the stack and prints the URLs. It never asks for a hosted API
+key — if it finds one configured it warns you that offline mode is off.
 
-## First Time Setup
+## First-time setup
 
-### 1. Configure Environment Variables
+Everything that downloads weights is explicit and one-time:
 
-Edit the `.env` file in the project root and add your API keys:
-
-```bash
-# Required for video transcription
-ASSEMBLY_AI_API_KEY=your_assemblyai_key_here
-
-# Choose one AI provider for clip selection
-OPENAI_API_KEY=your_openai_key_here
-
-# Configure which AI model to use
-LLM=openai:gpt-4
-
-# OR use Ollama locally
-# LLM=ollama:gpt-oss:20b
-# OLLAMA_BASE_URL=http://localhost:11434/v1
-
-# Optional: Amazon SES for subscription lifecycle emails
-# Required if you want hosted billing emails when SELF_HOST=false
-# AWS_REGION=us-east-1
-# AWS_ACCESS_KEY_ID=your_aws_access_key_id
-# AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
-# SES_FROM_EMAIL="SupoClip <onboarding@example.com>"
+```powershell
+# Windows 11 (PowerShell) — checks tools, writes .env, pulls llama3.2:3b and Whisper "small"
+powershell -ExecutionPolicy Bypass -File scripts\setup-clipwright.ps1 -InstallModels
 ```
 
-### 2. Start SupoClip
-
 ```bash
-./start.sh
+# macOS / Linux
+cp .env.example .env
+python3 scripts/setup_local_ai.py --write-env --install-whisper --pull-ollama-model
+docker compose up -d --build
 ```
 
-### 3. Access the Application
+Already have the model files? Skip `-InstallModels`; nothing will be fetched and
+the app still starts, reporting the missing model in Settings → Offline & local AI.
 
-- **Frontend**: http://localhost:3107
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+### What goes where
+
+| Thing | Default | Change with |
+|---|---|---|
+| Whisper checkpoint | `./data/models/whisper/small.pt` | `WHISPER_MODEL_SIZE`, `WHISPER_MODEL_DIR` |
+| Ollama model | Ollama's own store (`llama3.2:3b`) | `ollama pull <model>` + `LLM=ollama:<model>` |
+| Uploads / clips | `./data/uploads`, `./data/clips` | `CLIPWRIGHT_DATA_DIR` |
+| Database | Docker volume `postgres_data` | `POSTGRES_*` in `.env` |
+
+Nothing in `./data` is deleted by `docker compose down`.
+
+## Environment variables you may actually edit
+
+```dotenv
+OFFLINE_MODE=true               # keep true: no hosted AI calls, ever
+TRANSCRIPTION_PROVIDER=whisper
+WHISPER_MODEL_SIZE=small        # "base" is ~3x faster on CPU
+LLM=ollama:llama3.2:3b
+AI_EDIT_MODEL=ollama:llama3.2:3b
+```
+
+Everything else has a working default. The full annotated list is in
+`.env.example` and [docs/configuration.md](docs/configuration.md).
+
+## Access the app
+
+- **Frontend**: <http://localhost:3107>
+- **Backend API**: <http://localhost:8000>
+- **API docs**: <http://localhost:8000/docs>
+- **Local AI status**: <http://localhost:8000/local-ai/status>
 
 These URLs assume the copied `.env.example`, which sets `FRONTEND_PORT=3107`.
-Existing `.env` files without that setting keep Docker host port `3001`.
-Preserve your existing port when using a production reverse proxy.
+Existing `.env` files without that setting keep Docker host port `3001`. Keep
+your existing port if a reverse proxy points at it.
 
-## Manual Docker Commands
-
-If you prefer to use Docker commands directly:
+## Manual Docker commands
 
 ```bash
-# Start all services
-docker-compose up -d --build
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
-
-# Rebuild after code changes
-docker-compose up -d --build
+docker compose up -d --build     # start / rebuild
+docker compose stop              # stop, keep data
+docker compose restart backend worker ai-worker
+docker compose logs -f worker    # watch the pipeline
+docker compose down              # remove containers, keep volumes and ./data
 ```
 
-## Environment Configuration
+## Verify the local models
 
-### Required Variables
-
-| Variable | Description | Where to Get |
-|----------|-------------|--------------|
-| `ASSEMBLY_AI_API_KEY` | Speech-to-text transcription | https://www.assemblyai.com/ |
-| `LLM` | AI model identifier | e.g., `openai:gpt-5.2` or `ollama:gpt-oss:20b` |
-
-### Optional Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WHISPER_MODEL_SIZE` | `medium` | Whisper model size (tiny/base/small/medium/large) |
-| `BETTER_AUTH_SECRET` | dev secret | Auth secret (change in production!) |
-| `GOOGLE_API_KEY` | - | For Google Gemini models |
-| `ANTHROPIC_API_KEY` | - | For Claude models |
-| `OPENROUTER_API_KEY` | - | For `openrouter:*` models |
-| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | For local/self-hosted Ollama endpoint |
-| `OLLAMA_API_KEY` | - | Optional, required for Ollama Cloud |
-| `AWS_REGION` | `us-east-1` | Optional in self-host mode, required for hosted billing emails |
-| `AWS_ACCESS_KEY_ID` | - | Optional in self-host mode, required for hosted billing emails |
-| `AWS_SECRET_ACCESS_KEY` | - | Optional in self-host mode, required for hosted billing emails |
-| `SES_FROM_EMAIL` | `SupoClip <onboarding@example.com>` | Verified sender for backend subscription emails |
-
-### Hosted Billing Email Setup
-
-If you enable hosted monetization with `SELF_HOST=false`, set these as well:
-
-| Variable | Description |
-|----------|-------------|
-| `BACKEND_AUTH_SECRET` | Shared secret used by frontend API routes to call the backend |
-| `STRIPE_SECRET_KEY` | Stripe server-side API key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_PRO_PRICE_ID` | Stripe price ID for the $9.99/month Pro subscription |
-| `STRIPE_SCALE_PRICE_ID` | Stripe price ID for the $24.99/month Creator subscription |
-| `STRIPE_PRO_ANNUAL_PRICE_ID` | Stripe price ID for the $99.90/year Pro subscription |
-| `STRIPE_SCALE_ANNUAL_PRICE_ID` | Stripe price ID for the $249.90/year Creator subscription |
-| `STRIPE_PRICE_ID` | Legacy fallback Stripe price ID for the Pro subscription |
-| `PRO_PLAN_MINUTE_LIMIT` | Pro monthly allowance in minutes of source video, usually `600` |
-| `SCALE_PLAN_MINUTE_LIMIT` | Creator monthly allowance in minutes of source video, usually `1500` |
-| `AWS_REGION` | AWS region used for Amazon SES, default `us-east-1` |
-| `AWS_ACCESS_KEY_ID` | AWS access key ID used to send subscription emails via Amazon SES |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret access key used to send subscription emails via Amazon SES |
-| `SES_FROM_EMAIL` | Verified sender address used for subscription emails |
-
-The billing flow sends:
-
-- A thank-you email after `checkout.session.completed`
-- A cancellation email after `customer.subscription.deleted`
-
-## Supported AI Models
-
-### OpenAI (Recommended)
 ```bash
-LLM=openai:gpt-4
-LLM=openai:gpt-4-turbo
-LLM=openai:gpt-3.5-turbo
+python scripts/setup_local_ai.py --check    # Docker, FFmpeg, Ollama, models, backend health
+ollama list                                 # what Ollama has
+curl http://localhost:8000/local-ai/status  # what the backend sees
 ```
 
-### Anthropic
-```bash
-LLM=anthropic:claude-3-5-sonnet-20241022
-LLM=anthropic:claude-3-opus
-LLM=anthropic:claude-3-haiku
-```
+## First clip
 
-### Google
-```bash
-LLM=google-gla:gemini-3-flash-preview
-LLM=google-gla:gemini-3-pro-preview
-```
+1. Open <http://localhost:3107> and create an account (stored locally in
+   PostgreSQL — no email is sent).
+2. **Create** → drop a local video file (MP4/MOV/MKV/WebM) or paste a YouTube
+   link (online only).
+3. Choose the clip count and aspect, then start. Whisper transcribes on CPU,
+   Ollama picks the moments, FFmpeg renders.
+4. Edit the clips in the studio, then download or export.
 
-### Ollama
-```bash
-LLM=ollama:gpt-oss:20b
-OLLAMA_BASE_URL=http://localhost:11434/v1
-```
+A 20-minute source on a Ryzen 5 4600U takes roughly 35–70 minutes with
+`WHISPER_MODEL_SIZE=small`, or about half that with `base`. Analysis and
+rendering add a few minutes.
 
-## Troubleshooting
+## Troubleshooting in one line each
 
-### Services not starting?
+- **"Local AI is not ready"** → `python scripts/setup_local_ai.py --check`.
+- **Ollama unreachable from Docker** → start Ollama on the host; compose already
+  routes via `host.docker.internal`.
+- **Whisper model missing** → `python scripts/setup_local_ai.py --install-whisper`.
+- **Port already in use** → change `FRONTEND_PORT` / `BACKEND_PORT` in `.env`.
 
-1. **Check Docker is running**:
-   ```bash
-   docker info
-   ```
-
-2. **View service logs**:
-   ```bash
-   docker-compose logs -f
-   ```
-
-3. **Check service health**:
-   ```bash
-   docker-compose ps
-   ```
-
-### API Keys not working?
-
-1. Verify keys are set in `.env` file
-2. Ensure no extra spaces around the `=` sign
-3. Restart services after changing `.env`:
-   ```bash
-   docker-compose down
-   docker-compose up -d
-   ```
-
-### Database issues?
-
-Reset the database:
-```bash
-docker-compose down -v  # WARNING: This deletes all data!
-docker-compose up -d
-```
-
-## Architecture
-
-SupoClip runs 4 Docker containers:
-
-1. **Frontend** (Next.js 15) - Port 3107
-2. **Backend** (FastAPI + Python) - Port 8000
-3. **PostgreSQL** - Port 5432
-4. **Redis** - Port 6379
-
-All services are connected via a Docker network and start automatically with proper health checks.
-
-## What Happens When You Run `./start.sh`?
-
-1. Checks if `.env` file exists with required API keys
-2. Verifies Docker is running
-3. Builds Docker images (first time: ~5-10 minutes)
-4. Starts PostgreSQL and waits for it to be healthy
-5. Starts Redis cache
-6. Starts backend API server
-7. Starts frontend web server
-8. Displays URLs for accessing the application
-
-## Production Deployment
-
-For production use:
-
-1. Change `BETTER_AUTH_SECRET` to a secure random string
-2. Use strong database passwords
-3. Enable HTTPS with a reverse proxy (nginx/Caddy)
-4. Set up persistent volumes for data
-5. Configure backup strategies
-
-## Next Steps
-
-- Read the full documentation in `CLAUDE.md`
-- Check out the API docs at http://localhost:8000/docs
-- View example clips in the frontend
-- Customize fonts by adding TTF files to `backend/fonts/`
-- Add transition effects by adding MP4 files to `backend/transitions/`
-
-## Getting Help
-
-- Check logs: `docker-compose logs -f`
-- View API documentation: http://localhost:8000/docs
-- Report issues: Create a GitHub issue with logs and error messages
+More: [docs/troubleshooting.md](docs/troubleshooting.md) and
+[docs/local-ai.md](docs/local-ai.md).

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ExternalLink } from "lucide-react";
@@ -7,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { intlLocale } from "@/i18n/config";
 import { HOSTED_APP_URL, getSiteUrl } from "@/lib/blog-posts";
 import { COMPANY_NAME, COMPANY_REGISTERED_ADDRESS, COMPANY_REGISTRATION_NUMBER } from "@/lib/site";
+import { BrandLogo } from "@/components/brand-mark";
 
 const LAST_UPDATED = "2026-10-31";
-const CONTACT_EMAIL = "privacy@supoclip.com";
+const CONTACT_EMAIL = "privacy@clipwright.example";
 
 function formatLegalDate(locale: string) {
   return new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "long", timeZone: "UTC" }).format(
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const url = `${getSiteUrl()}/privacy`;
 
   return {
-    title: { absolute: `SupoClip.com ${t("privacy.title")}` },
+    title: { absolute: `ClipWright Studio.com ${t("privacy.title")}` },
     description: t("privacy.metaDescription"),
     alternates: { canonical: url },
     openGraph: {
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: t("privacy.ogDescription"),
       type: "website",
       url,
-      siteName: "SupoClip",
+      siteName: "ClipWright Studio",
     },
   };
 }
@@ -64,12 +64,12 @@ export default async function PrivacyPolicyPage() {
       <header className="border-b bg-background/95">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="SupoClip" width={24} height={24} className="rounded-lg dark:invert" />
+            <BrandLogo size={24} className="rounded-lg" />
             <span
               className="text-lg font-bold tracking-tight"
               style={{ fontFamily: "var(--font-syne), var(--font-geist-sans), system-ui" }}
             >
-              SupoClip
+              ClipWright Studio
             </span>
           </Link>
           <a href={HOSTED_APP_URL} target="_blank" rel="noopener noreferrer">
@@ -87,7 +87,7 @@ export default async function PrivacyPolicyPage() {
             className="text-4xl font-extrabold tracking-tight sm:text-5xl"
             style={{ fontFamily: "var(--font-syne), var(--font-geist-sans), system-ui" }}
           >
-            SupoClip.com {t("privacy.title")}
+            ClipWright Studio.com {t("privacy.title")}
           </h1>
           <p className="text-sm text-muted-foreground">{t("lastUpdated", { date: updated })}</p>
           <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -49,8 +48,9 @@ import {
   getMarketingLink,
   type MarketingLink,
 } from "@/lib/marketing-links";
-import { APP_STORE_URL, GITHUB_URL, HOSTED_APP_URL, PRODUCT_HUNT_BADGE_URL, PRODUCT_HUNT_URL } from "@/lib/site";
+import { GITHUB_URL, HOSTED_APP_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-mark";
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -194,8 +194,8 @@ export default function LandingPage() {
           )}
         >
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="SupoClip" width={24} height={24} className="rounded-md dark:invert" />
-            <span className="font-display text-[17px] font-bold tracking-tight">SupoClip</span>
+            <BrandLogo size={24} className="rounded-md" />
+            <span className="font-display text-[17px] font-bold tracking-tight">ClipWright Studio</span>
           </Link>
 
           <div className="hidden items-center gap-1 md:flex">
@@ -636,20 +636,7 @@ export default function LandingPage() {
               <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted-foreground">{t("cta.body")}</p>
               <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
                 <PrimaryCta authEnabled={authEnabled} label={t("nav.getStarted")} hostedLabel={t("nav.openHosted")} />
-                <a
-                  href={APP_STORE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={t("hero.appStoreAria")}
-                  className="flex items-center"
-                >
-                  <Image src="/app-store-badge.svg" alt={t("hero.appStoreAlt")} width={135} height={40} className="h-12 w-auto" />
-                </a>
               </div>
-              <a href={PRODUCT_HUNT_URL} target="_blank" rel="noopener noreferrer" className="mt-10 inline-block opacity-80 transition-opacity hover:opacity-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={PRODUCT_HUNT_BADGE_URL} alt={t("hero.productHuntAlt")} width={200} height={43} />
-              </a>
             </div>
           </div>
         </Reveal>

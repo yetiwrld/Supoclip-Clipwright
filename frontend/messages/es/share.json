@@ -1,5 +1,5 @@
 {
-  "brand": "SupoClip",
+  "brand": "ClipWright Studio",
   "makeYourOwn": "Crea los tuyos",
   "unavailableTitle": "Este enlace no está disponible",
   "unavailable": "Este enlace para compartir no está disponible",
@@ -8,6 +8,6 @@
   "summary": "{count, plural, one {# clip} other {# clips}} · {duration} de momentos destacados",
   "topVirality": "puntaje de viralidad más alto",
   "ctaTitle": "Convierte tus videos largos en clips como estos.",
-  "ctaBody": "SupoClip encuentra los mejores momentos, encuadra a quien habla y escribe los subtítulos. Código abierto y gratis para autoalojar.",
-  "try": "Probar SupoClip"
+  "ctaBody": "ClipWright Studio encuentra los mejores momentos, encuadra a quien habla y escribe los subtítulos. Código abierto y gratis para autoalojar.",
+  "try": "Probar ClipWright Studio"
 }

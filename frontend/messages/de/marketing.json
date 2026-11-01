@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "title": "SupoClip – Open-Source-KI-Videoclipper für Shorts",
+    "title": "ClipWright Studio – Open-Source-KI-Videoclipper für Shorts",
     "description": "Mach aus langen Videos und Twitch- oder Kick-VODs untertitelte YouTube Shorts, TikToks und Reels – mit Open-Source-KI-Clipping, Viralitätsbewertung und gesichtsbewussten 9:16-Schnitten.",
     "openGraphDescription": "Mach aus langen Videos und Twitch- oder Kick-VODs untertitelte YouTube Shorts, TikToks und Reels mit Open-Source-KI-Clipping.",
     "twitterDescription": "Open-Source-KI-Clipping, Viralitätsbewertung, Untertitel und gesichtsbewusste Hochformatschnitte.",
@@ -19,7 +19,7 @@
       "featureExports": "Exporte für YouTube Shorts, TikTok und Instagram Reels",
       "featureSelfHost": "Open-Source-Self-Hosting",
       "offerCategory": "Selbst gehostete Open-Source-Edition",
-      "ios": "Die SupoClip-App für iOS: Mach aus langen Videos untertitelte Hochformat-Shorts auf deinem iPhone.",
+      "ios": "Die ClipWright Studio-App für iOS: Mach aus langen Videos untertitelte Hochformat-Shorts auf deinem iPhone.",
       "website": "Open-Source-KI-Videoclipping für Kurzform-Content."
     }
   },
@@ -44,27 +44,27 @@
   "related": {
     "continueExploring": "Weiter stöbern",
     "keepReading": "Weiterlesen",
-    "relatedGuides": "Ähnliche SupoClip-Guides",
+    "relatedGuides": "Ähnliche ClipWright Studio-Guides",
     "read": "Lesen"
   },
   "links": {
     "blog_tiktok_publishing_is_live": {
       "eyebrow": "Product update",
-      "title": "TikTok publishing is now live in SupoClip",
+      "title": "TikTok publishing is now live in ClipWright Studio",
       "label": "TikTok publishing",
       "description": "Connect TikTok, publish to TikTok and YouTube together on the web, and schedule ahead on Creator."
     },
     "demo": {
       "label": "Demo",
       "eyebrow": "Demo",
-      "title": "Sieh echte Clips, die SupoClip aus einem langen Video gemacht hat",
+      "title": "Sieh echte Clips, die ClipWright Studio aus einem langen Video gemacht hat",
       "description": "Schau dir das Ergebnis an und spring dann zu jedem Moment im Originalvideo."
     },
     "ai_video_clipper": {
       "label": "KI-Videoclipper",
       "eyebrow": "KI-Videoclipping",
       "title": "KI-Videoclipper für Shorts, Reels und TikTok",
-      "description": "Wie SupoClip Momente findet, Kandidaten bewertet, Gesichter neu rahmt und Untertitel setzt."
+      "description": "Wie ClipWright Studio Momente findet, Kandidaten bewertet, Gesichter neu rahmt und Untertitel setzt."
     },
     "youtube_shorts_clipper": {
       "label": "YouTube-Shorts-Clipper",
@@ -81,13 +81,13 @@
     "blog_self_host_supoclip_docker": {
       "label": "Self-Hosting-Guide",
       "eyebrow": "Self-Hosting-Guide",
-      "title": "SupoClip mit Docker Compose selbst hosten",
+      "title": "ClipWright Studio mit Docker Compose selbst hosten",
       "description": "Voraussetzungen, Umgebungsvariablen, erster Start, ein komplett lokales Setup und Produktionschecks."
     },
     "blog_supoclip_vs_opusclip": {
-      "label": "SupoClip vs OpusClip",
+      "label": "ClipWright Studio vs OpusClip",
       "eyebrow": "Vergleich",
-      "title": "SupoClip vs OpusClip: ein Vergleich mit Quellen",
+      "title": "ClipWright Studio vs OpusClip: ein Vergleich mit Quellen",
       "description": "Preismodell, Betrieb, Wasserzeichen und Ablauf, jede Aussage mit einer Quelle verlinkt."
     },
     "blog_best_free_opusclip_alternative": {
@@ -97,9 +97,9 @@
       "description": "Wann ein selbst gehosteter Open-Source-Clipper die bessere Wahl ist als ein Credit-Tool."
     },
     "blog_supoclip_vs_supo_live": {
-      "label": "SupoClip vs supo.live",
+      "label": "ClipWright Studio vs supo.live",
       "eyebrow": "Vergleich",
-      "title": "SupoClip vs supo.live: Open-Source-Kontrolle",
+      "title": "ClipWright Studio vs supo.live: Open-Source-Kontrolle",
       "description": "Vergleich Self-Hosting, KI-Clipping und Schnittabläufe, bevor du ein Videotool wählst."
     },
     "sign_up": {
@@ -164,7 +164,7 @@
     },
     "blog_open_source_video_clippers": {
       "eyebrow": "Open-source comparison",
-      "title": "Compare SupoClip, Clips AI, and Auto-Editor",
+      "title": "Compare ClipWright Studio, Clips AI, and Auto-Editor",
       "label": "Open-source video clippers",
       "description": "Choose an app, Python library, or command-line tool for the editing job you need."
     }
@@ -188,13 +188,13 @@
     "badge": "Open Source und selbst hostbar. Auch fürs iPhone.",
     "titleLine1": "Ein langes Video.",
     "titleLine2": "Eine Woche Shorts.",
-    "body": "SupoClip findet die Momente in deinen Videos, VODs und Uploads, die sich zum Posten lohnen, schneidet sie mit wortgenauen Untertiteln auf 9:16 zu und plant sie für YouTube Shorts ein.",
+    "body": "ClipWright Studio findet die Momente in deinen Videos, VODs und Uploads, die sich zum Posten lohnen, schneidet sie mit wortgenauen Untertiteln auf 9:16 zu und plant sie für YouTube Shorts ein.",
     "startClipping": "Jetzt clippen",
     "useHosted": "Gehostete App nutzen",
     "viewSource": "Quellcode ansehen",
-    "appStoreAria": "SupoClip im App Store laden",
+    "appStoreAria": "ClipWright Studio im App Store laden",
     "appStoreAlt": "Im App Store laden",
-    "productHuntAlt": "SupoClip - Open-Source-KI-Clipper: lange Videos werden virale Shorts | Product Hunt",
+    "productHuntAlt": "ClipWright Studio - Open-Source-KI-Clipper: lange Videos werden virale Shorts | Product Hunt",
     "sources": {
       "upload": "Eigene Dateien",
       "label": "Clips aus"
@@ -210,7 +210,7 @@
       "scheduled": "Geplant",
       "steps": {
         "source": "Dein langes Video",
-        "clip": "Der Clip, den SupoClip gefunden hat",
+        "clip": "Der Clip, den ClipWright Studio gefunden hat",
         "post": "Auf YouTube geplant"
       },
       "longForm": "Langes Video",
@@ -297,7 +297,7 @@
   "editor": {
     "eyebrow": "Editor",
     "title": "Ein kompletter Editor, direkt eingebaut",
-    "body": "Jeder Clip öffnet sich in einem Studio für Kurzvideos. Schneiden, ein Wort korrigieren, Untertitel umgestalten, Bildausschnitt anpassen und exportieren, ohne SupoClip zu verlassen.",
+    "body": "Jeder Clip öffnet sich in einem Studio für Kurzvideos. Schneiden, ein Wort korrigieren, Untertitel umgestalten, Bildausschnitt anpassen und exportieren, ohne ClipWright Studio zu verlassen.",
     "tryIt": "Diese Vorschau funktioniert. Klick die Tabs an, wechsle den Ausschnitt, zieh an den Reglern.",
     "points": {
       "timeline": {
@@ -337,7 +337,7 @@
   "publish": {
     "eyebrow": "Neu: Veröffentlichen",
     "title": "Einmal clippen. Die ganze Woche posten.",
-    "body": "Verbinde deinen YouTube-Kanal und jeder Clip erscheint nach seinem eigenen Zeitplan. Wähle eine Uhrzeit, prüfe den KI-Titelentwurf und SupoClip postet für dich.",
+    "body": "Verbinde deinen YouTube-Kanal und jeder Clip erscheint nach seinem eigenen Zeitplan. Wähle eine Uhrzeit, prüfe den KI-Titelentwurf und ClipWright Studio postet für dich.",
     "platforms": {
       "youtube": "YouTube Shorts",
       "tiktok": "TikTok",
@@ -358,7 +358,7 @@
       },
       "learn": {
         "title": "Lernt, was dein Publikum schaut",
-        "description": "Aufrufe fließen zurück in SupoClip, damit künftige Clips sich an dem orientieren, was auf deinem Kanal funktioniert."
+        "description": "Aufrufe fließen zurück in ClipWright Studio, damit künftige Clips sich an dem orientieren, was auf deinem Kanal funktioniert."
       }
     },
     "plan": "Planen ist im Creator-Tarif enthalten. Sofort veröffentlichen geht auch mit Pro.",
@@ -426,23 +426,23 @@
     "items": {
       "sources": {
         "question": "Welche Videos kann ich clippen?",
-        "answer": "YouTube-Videos, Twitch- und Kick-VODs oder -Clips und Dateien, die du selbst hochlädst. Füge einen Link ein oder zieh eine Aufnahme hinein, den Rest erledigt SupoClip."
+        "answer": "YouTube-Videos, Twitch- und Kick-VODs oder -Clips und Dateien, die du selbst hochlädst. Füge einen Link ein oder zieh eine Aufnahme hinein, den Rest erledigt ClipWright Studio."
       },
       "selection": {
-        "question": "Wie wählt SupoClip die Clips aus?",
+        "question": "Wie wählt ClipWright Studio die Clips aus?",
         "answer": "Das Video wird Wort für Wort transkribiert, dann liest ein KI-Modell das gesamte Transkript und wählt Momente, die für sich allein funktionieren. Jeder wird nach Hook, Engagement, Mehrwert und Teilbarkeit bewertet, und du kannst jeden Clip danach kürzen, teilen oder zusammenfügen."
       },
       "minutes": {
-        "question": "Wie werden Minuten gezählt?",
-        "answer": "Tarife werden in Minuten Quellvideo gemessen, nicht in Clips. Pro enthält {proHours} Stunden im Monat, Creator {creatorHours} Stunden. Ein 30-Minuten-Video verbraucht 30 Minuten, egal wie viele Clips daraus entstehen. Das Kontingent wird jeden Monat zurückgesetzt, auch bei Jahrestarifen."
+        "question": "Is there a usage limit?",
+        "answer": "No. ClipWright Studio runs on your hardware, so there are no minute allowances or plans. Very long sources are limited only by your disk space and patience for CPU rendering."
       },
       "publishing": {
-        "question": "Kann SupoClip auf TikTok und Instagram posten?",
+        "question": "Kann ClipWright Studio auf TikTok und Instagram posten?",
         "answer": "Heute kannst du direkt auf YouTube Shorts veröffentlichen: sofort mit Pro oder geplant mit Creator. TikTok und Instagram kommen bald. Bis dahin lädst du Clips mit den Export-Presets für TikTok und Reels herunter und lädst sie selbst hoch."
       },
       "watermark": {
         "question": "Haben die Clips ein Wasserzeichen?",
-        "answer": "Nein. SupoClip fügt nie ein Wasserzeichen hinzu, weder in den gehosteten Tarifen noch beim Selbsthosten."
+        "answer": "Nein. ClipWright Studio fügt nie ein Wasserzeichen hinzu, weder in den gehosteten Tarifen noch beim Selbsthosten."
       },
       "languages": {
         "question": "Funktioniert es auch in anderen Sprachen?",
@@ -450,7 +450,7 @@
       },
       "selfHost": {
         "question": "Ist Selbsthosten wirklich kostenlos?",
-        "answer": "Ja. SupoClip ist Open Source unter AGPL-3.0 und läuft mit Docker Compose auf deinem eigenen Rechner. Du zahlst nur für die Transkriptions- und KI-Anbieter, die du wählst, falls überhaupt."
+        "answer": "Ja. ClipWright Studio ist Open Source unter AGPL-3.0 und läuft mit Docker Compose auf deinem eigenen Rechner. Du zahlst nur für die Transkriptions- und KI-Anbieter, die du wählst, falls überhaupt."
       },
       "cancel": {
         "question": "Kann ich jederzeit kündigen?",
@@ -469,16 +469,16 @@
       "docker": "Ein Docker-Compose-Befehl, um es selbst zu betreiben",
       "models": "Eigene Modelle nutzen: Gemini, OpenAI, Anthropic oder Ollama"
     },
-    "ready": "SupoClip läuft auf localhost:3107"
+    "ready": "ClipWright Studio läuft auf localhost:3107"
   },
   "guides": {
     "eyebrow": "Guides & Vergleiche",
     "title": "Lern den kompletten Clipping-Ablauf",
-    "body": "Praktische Seiten mit Quellen: Videoclipper wählen, SupoClip selbst hosten und lange Aufnahmen zu Kurzform-Content machen.",
+    "body": "Praktische Seiten mit Quellen: Videoclipper wählen, ClipWright Studio selbst hosten und lange Aufnahmen zu Kurzform-Content machen.",
     "read": "Guide lesen"
   },
   "cta": {
     "title": "Dein nächstes Video ist schon eine Woche Content.",
-    "body": "Füge einen Link ein und sieh, was SupoClip findet. Nutze die gehostete App oder hoste die Open-Source-Version kostenlos selbst."
+    "body": "Füge einen Link ein und sieh, was ClipWright Studio findet. Nutze die gehostete App oder hoste die Open-Source-Version kostenlos selbst."
   }
 }

@@ -1,7 +1,7 @@
 {
   "title": "Pengaturan",
   "intro": "Bawaan untuk generasi baru, notifikasi, dan paketmu.",
-  "languageDescription": "Bahasa yang dipakai di seluruh SupoClip.",
+  "languageDescription": "Bahasa yang dipakai di seluruh ClipWright Studio.",
   "signInRequired": {
     "title": "Perlu masuk",
     "body": "Kamu perlu masuk untuk mengakses pengaturan",
@@ -70,7 +70,7 @@
     "socialTitle": "Akun sosial",
     "socialDescription": "Hubungkan YouTube, TikTok, dan Instagram untuk memublikasikan clip dan melacak performa",
     "creatorTitle": "Program kreator",
-    "creatorDescription": "Buat video tentang SupoClip, dapatkan Pro gratis dan kode untuk audiensmu"
+    "creatorDescription": "Buat video tentang ClipWright Studio, dapatkan Pro gratis dan kode untuk audiensmu"
   },
   "save": {
     "saved": "Preferensi berhasil disimpan!",
@@ -85,7 +85,7 @@
   },
   "apiKeys": {
     "title": "Agen & API",
-    "intro": "Biarkan Claude, Cursor, dan agen AI lain membuat clip untukmu lewat <brand>server MCP SupoClip</brand>, atau panggil REST API dari kodemu sendiri. Perlakukan kunci seperti kata sandi; kunci memberi akses penuh ke akunmu.",
+    "intro": "Biarkan Claude, Cursor, dan agen AI lain membuat clip untukmu lewat <brand>server MCP ClipWright Studio</brand>, atau panggil REST API dari kodemu sendiri. Perlakukan kunci seperti kata sandi; kunci memberi akses penuh ke akunmu.",
     "docs": {
       "agentTitle": "Hubungkan agen",
       "agentDescription": "Siapkan server MCP di Claude, Cursor, dan klien MCP lain.",
@@ -121,7 +121,7 @@
   },
   "creator": {
     "title": "Program kreator",
-    "intro": "Membuat video tentang SupoClip? Dapatkan kodemu sendiri: audiensmu mendapat <em>diskon 20% untuk 3 bulan pertama</em>, dan kamu mendapat SupoClip Pro gratis.",
+    "intro": "Membuat video tentang ClipWright Studio? Dapatkan kodemu sendiri: audiensmu mendapat <em>diskon 20% untuk 3 bulan pertama</em>, dan kamu mendapat ClipWright Studio Pro gratis.",
     "howItWorks": "Cara kerjanya",
     "signIn": "Buat akun gratis atau masuk untuk mendaftar program kreator.",
     "createAccount": "Buat akun",
@@ -168,13 +168,13 @@
     },
     "profileLabel": "Tautan profil",
     "profilePlaceholder": "https://www.tiktok.com/@you",
-    "videoLabel": "Video yang kamu buat tentang SupoClip",
+    "videoLabel": "Video yang kamu buat tentang ClipWright Studio",
     "optional": "(opsional)",
     "videoPlaceholder": "https://",
-    "planLabel": "Bagaimana kamu akan mempromosikan SupoClip?",
+    "planLabel": "Bagaimana kamu akan mempromosikan ClipWright Studio?",
     "termsTitle": "Ketentuan program",
     "termSponsored": "Tandai postingan bersponsor sebagaimana mestinya (misalnya #ad).",
-    "termAds": "Jangan pasang iklan atas nama SupoClip atau posting kodemu di situs kupon atau diskon.",
+    "termAds": "Jangan pasang iklan atas nama ClipWright Studio atau posting kodemu di situs kupon atau diskon.",
     "termOwn": "Jangan pakai kodemu sendiri.",
     "termEnd": "Kami bisa mengakhiri program atau mengeluarkan kreator kapan saja.",
     "agree": "Saya setuju dengan ketentuan program",

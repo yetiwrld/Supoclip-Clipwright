@@ -8,7 +8,7 @@ vi.mock("@/server/session", () => ({ getServerSession: vi.fn() }));
 vi.mock("@/server/prisma", () => ({ getPrismaClient: vi.fn() }));
 
 const body = { title: "New update", description: "An update", href: "/affiliate", action: "Learn more", isPublished: false, publishedAt: "2026-10-11T00:00:00Z" };
-const request = (value: unknown, origin?: string) => new Request("https://supoclip.com/api/admin/announcements", {
+const request = (value: unknown, origin?: string) => new Request("https://clipwright.example/api/admin/announcements", {
   method: "POST", headers: { "Content-Type": "application/json", ...(origin ? { origin } : {}) }, body: JSON.stringify(value),
 });
 const params = { params: Promise.resolve({ id: "stored-id" }) };
@@ -16,7 +16,7 @@ const announcement = { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://www.supoclip.com");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3107");
   vi.mocked(getServerSession).mockResolvedValue({ user: { id: "admin", is_admin: true } } as never);
   vi.mocked(getPrismaClient).mockReturnValue({ announcement } as never);
   announcement.findMany.mockResolvedValue([]);
@@ -44,7 +44,7 @@ it("rejects cross-origin writes even for an admin", async () => {
 
 it("allows the configured public origin behind a reverse proxy", async () => {
   const proxied = new Request("https://0.0.0.0:3107/api/admin/announcements", {
-    method: "POST", headers: { "Content-Type": "application/json", origin: "https://www.supoclip.com" }, body: JSON.stringify(body),
+    method: "POST", headers: { "Content-Type": "application/json", origin: "http://localhost:3107" }, body: JSON.stringify(body),
   });
   expect((await POST(proxied)).status).toBe(201);
 });

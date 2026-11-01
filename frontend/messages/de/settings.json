@@ -1,7 +1,7 @@
 {
   "title": "Einstellungen",
   "intro": "Standards für neue Generierungen, Benachrichtigungen und deinen Plan.",
-  "languageDescription": "Die Sprache in SupoClip.",
+  "languageDescription": "Die Sprache in ClipWright Studio.",
   "signInRequired": {
     "title": "Anmeldung nötig",
     "body": "Melde dich an, um deine Einstellungen zu sehen",
@@ -70,7 +70,7 @@
     "socialTitle": "Social-Konten",
     "socialDescription": "Verbinde YouTube, TikTok und Instagram, um Clips zu veröffentlichen und die Performance zu sehen",
     "creatorTitle": "Creator-Programm",
-    "creatorDescription": "Mach Videos über SupoClip, bekomm Pro kostenlos und einen Code für dein Publikum"
+    "creatorDescription": "Mach Videos über ClipWright Studio, bekomm Pro kostenlos und einen Code für dein Publikum"
   },
   "save": {
     "saved": "Einstellungen gespeichert!",
@@ -85,7 +85,7 @@
   },
   "apiKeys": {
     "title": "Agenten & API",
-    "intro": "Lass Claude, Cursor und andere KI-Agenten Videos für dich schneiden, über den <brand>SupoClip-MCP-Server</brand>, oder ruf die REST-API aus deinem Code auf. Behandle Schlüssel wie Passwörter: Sie geben vollen Zugriff auf dein Konto.",
+    "intro": "Lass Claude, Cursor und andere KI-Agenten Videos für dich schneiden, über den <brand>ClipWright Studio-MCP-Server</brand>, oder ruf die REST-API aus deinem Code auf. Behandle Schlüssel wie Passwörter: Sie geben vollen Zugriff auf dein Konto.",
     "docs": {
       "agentTitle": "Einen Agenten verbinden",
       "agentDescription": "Richte den MCP-Server in Claude, Cursor und anderen MCP-Clients ein.",
@@ -121,7 +121,7 @@
   },
   "creator": {
     "title": "Creator-Programm",
-    "intro": "Du machst Videos über SupoClip? Hol dir deinen Code: Dein Publikum bekommt <em>20 % Rabatt auf die ersten 3 Monate</em>, und du bekommst SupoClip Pro kostenlos.",
+    "intro": "Du machst Videos über ClipWright Studio? Hol dir deinen Code: Dein Publikum bekommt <em>20 % Rabatt auf die ersten 3 Monate</em>, und du bekommst ClipWright Studio Pro kostenlos.",
     "howItWorks": "So funktioniert's",
     "signIn": "Erstelle ein kostenloses Konto oder melde dich an, um dich für das Creator-Programm zu bewerben.",
     "createAccount": "Konto erstellen",
@@ -168,13 +168,13 @@
     },
     "profileLabel": "Profil-Link",
     "profilePlaceholder": "https://www.tiktok.com/@you",
-    "videoLabel": "Ein Video, das du über SupoClip gemacht hast",
+    "videoLabel": "Ein Video, das du über ClipWright Studio gemacht hast",
     "optional": "(optional)",
     "videoPlaceholder": "https://",
-    "planLabel": "Wie willst du SupoClip bewerben?",
+    "planLabel": "Wie willst du ClipWright Studio bewerben?",
     "termsTitle": "Programmbedingungen",
     "termSponsored": "Kennzeichne gesponserte Posts (zum Beispiel #ad).",
-    "termAds": "Schalt keine Anzeigen auf den Namen SupoClip und stell deinen Code nicht auf Gutschein- oder Deal-Seiten.",
+    "termAds": "Schalt keine Anzeigen auf den Namen ClipWright Studio und stell deinen Code nicht auf Gutschein- oder Deal-Seiten.",
     "termOwn": "Nutze nicht deinen eigenen Code.",
     "termEnd": "Wir können das Programm beenden oder einen Creator jederzeit entfernen.",
     "agree": "Ich stimme den Programmbedingungen zu",

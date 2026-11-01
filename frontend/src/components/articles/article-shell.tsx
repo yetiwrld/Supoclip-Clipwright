@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ArrowRight, Github } from "lucide-react";
@@ -8,6 +7,8 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { intlLocale } from "@/i18n/config";
 import { type BlogPost, getSiteUrl } from "@/lib/blog-posts";
 import { GITHUB_URL } from "@/lib/site";
+import { BrandLogo } from "@/components/brand-mark";
+import { BRAND_LOGO } from "@/lib/brand";
 
 export interface ArticleFaq {
   question: string;
@@ -72,7 +73,7 @@ export async function ArticleShell({
         datePublished: post.publishedAt,
         dateModified: post.updatedAt,
         author: { "@type": "Organization", name: post.author },
-        publisher: { "@type": "Organization", name: "SupoClip", url: siteUrl, logo: { "@type": "ImageObject", url: `${siteUrl}/logo.png` } },
+        publisher: { "@type": "Organization", name: "ClipWright Studio", url: siteUrl, logo: { "@type": "ImageObject", url: `${siteUrl}${BRAND_LOGO}` } },
         articleSection: post.category,
         keywords: post.keywords.join(", "),
         inLanguage: intlLocale(locale),
@@ -96,7 +97,7 @@ export async function ArticleShell({
       <header className="border-b">
         <nav aria-label={t("shell.blogNav")} className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5 text-xl font-bold">
-            <Image src="/logo.png" alt="" width={30} height={30} className="rounded-lg dark:invert" />SupoClip
+            <BrandLogo size={30} className="rounded-lg" />ClipWright Studio
           </Link>
           <div className="flex items-center gap-5 text-sm">
             <Link href="/blog" className="underline underline-offset-4">{t("shell.allArticles")}</Link>

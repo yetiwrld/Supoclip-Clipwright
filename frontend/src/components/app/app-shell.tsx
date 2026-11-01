@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,11 +18,11 @@ import { fetchGenerations, timeAgo, type GenerationSummary } from "@/lib/generat
 import { StatusBadge } from "@/components/app/status-badge";
 import { Announcements } from "@/components/announcements";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAppTheme } from "@/components/theme-provider";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-mark";
 
 // `mobile: false` keeps an item out of the five-slot mobile tab bar.
 // `social: true` items only show when social publishing is enabled for the user.
@@ -77,7 +76,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Children must keep the same tree position whether or not the session has
   // loaded — otherwise the page remounts and re-runs its initial fetches.
   const user = session?.user;
-  useAppTheme(Boolean(user));
   const admin = Boolean((user as { is_admin?: boolean } | undefined)?.is_admin);
   const socialAccess = useSocialAccess(Boolean(user));
   const labeled = NAV.map((item) => ({ ...item, label: t(`nav.${item.labelKey}`) }));
@@ -94,9 +92,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           compact ? "w-16 items-center px-2" : "w-60 px-3",
         )}
       >
-        <Link href="/" className={cn("flex h-14 items-center gap-2 font-display text-lg font-bold tracking-tight", compact ? "justify-center" : "px-2")}>
-          <Image src="/logo.png" alt="" width={24} height={24} className="size-6 dark:invert" priority />
-          {!compact && "SupoClip"}
+        <Link href="/" className={cn("flex h-14 items-center gap-2", compact ? "justify-center" : "px-2")} aria-label="ClipWright Studio">
+          <BrandLogo size={26} priority />
+          {!compact && (
+            <span className="flex min-w-0 flex-col leading-none">
+              <span className="font-display text-[15px] font-bold tracking-tight">ClipWright</span>
+              <span className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Studio</span>
+            </span>
+          )}
         </Link>
 
         <SidebarLink compact={compact} href="/" label={t("nav.newGeneration")} shortcut="N" className="mb-4 mt-1 bg-foreground text-background hover:bg-foreground/90 hover:text-background">
@@ -136,8 +139,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className={cn(user && "flex min-w-0 flex-1 flex-col", user && !immersive && "pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0")}>
         {user && !immersive ? <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur md:hidden">
-          <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
-            <Image src="/logo.png" alt="" width={22} height={22} className="size-[22px] dark:invert" />SupoClip
+          <Link href="/" className="flex items-center gap-2" aria-label="ClipWright Studio">
+            <BrandLogo size={24} />
+            <span className="font-display text-[15px] font-bold tracking-tight">ClipWright Studio</span>
           </Link>
           <div className="flex items-center gap-1">
             <Announcements key={user.id} userId={user.id} compact />

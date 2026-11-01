@@ -1,13 +1,25 @@
 # Changelog
 
-What changed in SupoClip for people using the product. Newest dates are first.
+What changed in ClipWright Studio for people using the product. Newest dates are first.
 
 Add a line here when a pull request changes something a user can see. Use **New**, **Improved**, **Fixed**, or **Under the hood**, describe the change in plain language, and link the pull request. Skip internal-only work, or fold it into one **Under the hood** line. Do not include customer names, email addresses, user IDs, or anything else private.
+
+## 2026-11-01
+
+- **New:** ClipWright Studio. The app has been rebranded end to end — name, logo, icons, manifest, emails and docs — and now runs its AI on your own machine. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/REBRANDING.md))
+- **New:** Local transcription with OpenAI Whisper (`small` by default, `base` for speed) and local clip selection with Ollama (`llama3.2:3b`). No API key is needed and no audio, transcript or prompt is sent anywhere. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))
+- **New:** Offline mode, on by default. Hosted AI providers are refused rather than silently used; a missing model produces a clear error with the command that fixes it. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/local-ai.md))
+- **New:** Settings → Offline & local AI shows live status for Ollama, the configured model, Whisper and overall readiness, plus which features still need the internet. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/setup.md))
+- **Improved:** A job now checks for FFmpeg, the Whisper checkpoint and the Ollama model before it starts, so a missing dependency fails in seconds instead of minutes in. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/troubleshooting.md))
+- **Improved:** Imported media, rendered clips and model files live in `./data` and survive `docker compose down`, restarts and image rebuilds. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/media-storage.md))
+- **Improved:** The interface is dark by default across the site, sign-in, library, editor, dialogs and toasts, and it stays dark after a restart. A light theme remains one click away. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/REBRANDING.md))
+- **Improved:** One-time setup downloads the models explicitly (`scripts\setup-clipwright.ps1 -InstallModels`); opening the app never downloads weights. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/setup.md))
+- **Under the hood:** Container names are now `clipwright-*`. Signed auth headers, queue names and the database role keep their original names so existing deployments keep working. ([docs](https://github.com/yetiwrld/Supoclip-Clipwright/blob/main/docs/REBRANDING.md))
 
 ## 2026-10-31
 
 - **New:** Download all of a generation's clips at once as a ZIP from the task page. The download starts right away and streams the original files. ([#321](https://github.com/FujiwaraChoki/supoclip/pull/321))
-- **Improved:** The footer, terms, and privacy policy now identify the company operating SupoClip. ([#314](https://github.com/FujiwaraChoki/supoclip/pull/314))
+- **Improved:** The footer, terms, and privacy policy now identify the company operating ClipWright Studio. ([#314](https://github.com/FujiwaraChoki/supoclip/pull/314))
 - **New:** Switch between a light and dark theme from the sidebar (or the header on mobile). The app starts light and remembers your choice; the website and sign-in pages stay light. ([#312](https://github.com/FujiwaraChoki/supoclip/pull/312))
 
 ## 2026-10-29
@@ -71,7 +83,7 @@ Add a line here when a pull request changes something a user can see. Use **New*
 - **New:** Connect YouTube, TikTok, or Instagram to publish a clip and see how those posts perform. ([#98](https://github.com/FujiwaraChoki/supoclip/pull/98))
 - **Improved:** The library groups each generation with its original video, and an uploaded file keeps its filename. ([#197](https://github.com/FujiwaraChoki/supoclip/pull/197))
 - **New:** A self-hosted install can use its own YouTube download service. ([#196](https://github.com/FujiwaraChoki/supoclip/pull/196))
-- **Under the hood:** If the first YouTube download does not check out, SupoClip can try another one within the same limit. ([#195](https://github.com/FujiwaraChoki/supoclip/pull/195))
+- **Under the hood:** If the first YouTube download does not check out, ClipWright Studio can try another one within the same limit. ([#195](https://github.com/FujiwaraChoki/supoclip/pull/195))
 
 ## 2026-10-15
 
@@ -83,7 +95,7 @@ Add a line here when a pull request changes something a user can see. Use **New*
 
 ## 2026-10-13
 
-- **New:** A public status page shows whether SupoClip is up. ([0aab079](https://github.com/FujiwaraChoki/supoclip/commit/0aab079))
+- **New:** A public status page shows whether ClipWright Studio is up. ([0aab079](https://github.com/FujiwaraChoki/supoclip/commit/0aab079))
 - **Fixed:** Closing a video stops the transfer instead of leaving it running. ([#187](https://github.com/FujiwaraChoki/supoclip/pull/187))
 
 ## 2026-10-12
@@ -101,7 +113,7 @@ Add a line here when a pull request changes something a user can see. Use **New*
 - **Improved:** Each video produces at most 10 clips. ([#181](https://github.com/FujiwaraChoki/supoclip/pull/181))
 - **New:** The home page and the demo play a new set of podcast clips. ([#182](https://github.com/FujiwaraChoki/supoclip/pull/182))
 - **New:** Checkout accepts a creator promo code. ([#183](https://github.com/FujiwaraChoki/supoclip/pull/183))
-- **New:** The app can show an announcement from the SupoClip team. ([#179](https://github.com/FujiwaraChoki/supoclip/pull/179))
+- **New:** The app can show an announcement from the ClipWright Studio team. ([#179](https://github.com/FujiwaraChoki/supoclip/pull/179))
 - **Improved:** The home page includes the Product Hunt badge. ([#184](https://github.com/FujiwaraChoki/supoclip/pull/184))
 - **Fixed:** If every clip fails to render, the job is marked failed instead of looking finished. A job that never starts does not use your monthly video allowance. ([#169](https://github.com/FujiwaraChoki/supoclip/pull/169), [#170](https://github.com/FujiwaraChoki/supoclip/pull/170), [#171](https://github.com/FujiwaraChoki/supoclip/pull/171))
 
@@ -117,7 +129,7 @@ Add a line here when a pull request changes something a user can see. Use **New*
 
 ## 2026-10-05
 
-- **New:** A demo page and practical guides cover clipping, self-hosting, and how SupoClip compares with other tools. ([#160](https://github.com/FujiwaraChoki/supoclip/pull/160))
+- **New:** A demo page and practical guides cover clipping, self-hosting, and how ClipWright Studio compares with other tools. ([#160](https://github.com/FujiwaraChoki/supoclip/pull/160))
 
 ## 2026-10-04
 

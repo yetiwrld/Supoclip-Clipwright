@@ -44,7 +44,7 @@
     "statusApproved": "Aprovado",
     "applied": "{email} · solicitou em {date}",
     "followers": "{count} seguidores",
-    "video": "Vídeo do SupoClip",
+    "video": "Vídeo do ClipWright Studio",
     "updateFailed": "Não foi possível atualizar a solicitação",
     "declineReason": "Motivo, enviado a quem se candidatou (opcional)",
     "revokeNote": "Nota interna (opcional)",

@@ -7,7 +7,6 @@ import { RelatedGuides } from "@/components/marketing/related-guides";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SupoLiveArticle } from "@/components/supo-live-article";
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -31,6 +30,8 @@ import { intlLocale } from "@/i18n/config";
 import { applyBlogCopy, HOSTED_APP_URL, blogPosts, getBlogPost, getBlogPostMetadata, getSiteUrl } from "@/lib/blog-posts";
 import { OPUSCLIP_COMPARISON_HREF, SELF_HOSTING_GUIDE_HREF } from "@/lib/marketing-links";
 import { getCreatorGuide } from "@/lib/creator-guides";
+import { BrandLogo } from "@/components/brand-mark";
+import { BRAND_LOGO } from "@/lib/brand";
 
 interface BlogPostPageProps {
   params: Promise<{
@@ -111,10 +112,10 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     },
     publisher: {
       "@type": "Organization",
-      name: "SupoClip",
+      name: "ClipWright Studio",
       logo: {
         "@type": "ImageObject",
-        url: `${siteUrl}/logo.png`,
+        url: `${siteUrl}${BRAND_LOGO}`,
       },
     },
     inLanguage: intlLocale(locale),
@@ -147,12 +148,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <header className="border-b bg-background/95">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="SupoClip" width={24} height={24} className="rounded-lg dark:invert" />
+            <BrandLogo size={24} className="rounded-lg" />
             <span
               className="text-lg font-bold tracking-tight"
               style={{ fontFamily: "var(--font-syne), var(--font-geist-sans), system-ui" }}
             >
-              SupoClip
+              ClipWright Studio
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -284,7 +285,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <div className="my-8 overflow-hidden rounded-lg border">
               <div className="grid grid-cols-[0.85fr_1fr_1fr] bg-muted/50 text-sm font-semibold">
                 <div className="p-4">{t(`${key}.table.feature`)}</div>
-                <div className="border-l p-4">SupoClip</div>
+                <div className="border-l p-4">ClipWright Studio</div>
                 <div className="border-l p-4">OpusClip</div>
               </div>
               {comparisonIcons.map((Icon, index) => (

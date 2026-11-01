@@ -27,6 +27,7 @@ import {
   type BillingPlanId,
 } from "@/lib/billing-plans";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { LocalAiPanel } from "@/components/settings/local-ai-panel";
 import { BillingIntervalToggle, ComingSoonTag, UpgradeNudge, getUpgradeState, useBillingPlanText } from "@/components/billing/upgrade-prompt";
 import type { BillingSummary } from "@/hooks/use-billing-summary";
 import { startUpgrade } from "@/lib/start-upgrade";
@@ -34,7 +35,7 @@ import { CreatorCodeField } from "@/components/billing/creator-code-field";
 import { toast } from "sonner";
 import { track } from "@/lib/datafast";
 import Link from "next/link";
-import { AlertCircle, Bot, Check, ChevronRight, Clock, CreditCard, Languages, Loader2, Mail, Megaphone, Share2, Type } from "lucide-react";
+import { AlertCircle, Bot, Check, ChevronRight, Clock, CreditCard, Languages, Loader2, Mail, Megaphone, Share2, Type, HardDriveDownload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FontSelectOption, type FontOption } from "@/components/font-select-option";
 
@@ -310,6 +311,16 @@ export default function SettingsPage() {
       <div className="mt-8 space-y-6">
         <Section icon={<Languages className="size-4" />} title={tLang("label")} description={t("languageDescription")}>
           <LanguageSwitcher />
+        </Section>
+
+        {/* Offline-first: live model/runtime status straight from the backend. */}
+        <Section
+          id="local-ai"
+          icon={<HardDriveDownload className="size-4" />}
+          title="Offline & local AI"
+          description="Whisper and Ollama run on this computer. This panel reports what is actually installed."
+        >
+          <LocalAiPanel />
         </Section>
 
         <Section icon={<Type className="size-4" />} title={t("captions.title")} description={t("captions.description")}>

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 /**
- * Line-art loop of what SupoClip does: a long video is scanned, its best
+ * Line-art loop of what ClipWright Studio does: a long video is scanned, its best
  * moments are marked, scissors cut them out, and they become vertical clips.
  * Everything is drawn in currentColor.
  */

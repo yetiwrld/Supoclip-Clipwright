@@ -39,8 +39,11 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-canvas: var(--canvas);
   --font-display: var(--font-syne);
   --radius-sm: calc(var(--radius) - 4px);
@@ -49,9 +52,68 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root {
+:root,
+.dark {
+  /* ClipWright Studio dark theme.
+     Charcoal surfaces + the orange from the app icon. Every component reads
+     these tokens; no component hardcodes a colour. */
   --radius: 0.75rem;
+
+  /* Brand accent (sampled from the ClipWright icon gradient) */
+  --brand: oklch(0.72 0.2 45);
+  --brand-strong: oklch(0.66 0.22 38);
+  --brand-foreground: oklch(0.17 0.02 45);
+  --brand-soft: oklch(0.27 0.055 45);
+
+  /* Surfaces: near-black canvas, distinct cards, raised popovers */
+  --canvas: oklch(0.135 0.004 60);
+  --background: oklch(0.155 0.004 60);
+  --card: oklch(0.196 0.005 60);
+  --card-foreground: oklch(0.97 0.002 90);
+  --popover: oklch(0.212 0.006 60);
+  --popover-foreground: oklch(0.97 0.002 90);
+
+  --foreground: oklch(0.965 0.002 90);
+  --primary: oklch(0.72 0.2 45);
+  --primary-foreground: oklch(0.16 0.02 45);
+  --secondary: oklch(0.245 0.006 60);
+  --secondary-foreground: oklch(0.965 0.002 90);
+  --muted: oklch(0.235 0.006 60);
+  --muted-foreground: oklch(0.735 0.012 70);
+  --accent: oklch(0.262 0.008 60);
+  --accent-foreground: oklch(0.975 0.002 90);
+
+  --destructive: oklch(0.66 0.2 25);
+  /* Status colours: readable on charcoal, never used as brand accents. */
+  --success: oklch(0.78 0.16 150);
+  --warning: oklch(0.82 0.15 85);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.72 0.2 45 / 65%);
+
+  /* Charts stay legible on charcoal */
+  --chart-1: oklch(0.74 0.18 48);
+  --chart-2: oklch(0.7 0.13 195);
+  --chart-3: oklch(0.76 0.15 92);
+  --chart-4: oklch(0.66 0.17 285);
+  --chart-5: oklch(0.7 0.16 340);
+
+  --sidebar: oklch(0.137 0.004 60);
+  --sidebar-foreground: oklch(0.93 0.003 90);
+  --sidebar-primary: oklch(0.72 0.2 45);
+  --sidebar-primary-foreground: oklch(0.16 0.02 45);
+  --sidebar-accent: oklch(0.225 0.007 60);
+  --sidebar-accent-foreground: oklch(0.97 0.002 90);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.72 0.2 45 / 60%);
+}
+
+/* Optional light theme. Dark is the default and the product's identity; this
+   block only exists so the theme toggle can offer a light surface without a
+   second design system. */
+.light {
   --brand: oklch(0.64 0.2 38);
+  --brand-strong: oklch(0.6 0.21 34);
   --brand-foreground: oklch(0.99 0.005 60);
   --brand-soft: oklch(0.96 0.03 50);
   --canvas: oklch(0.985 0.002 75);
@@ -70,6 +132,8 @@
   --accent: oklch(0.97 0.001 106.424);
   --accent-foreground: oklch(0.216 0.006 56.043);
   --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.55 0.14 150);
+  --warning: oklch(0.66 0.14 70);
   --border: oklch(0.923 0.003 48.717);
   --input: oklch(0.923 0.003 48.717);
   --ring: oklch(0.709 0.01 56.259);
@@ -88,50 +152,58 @@
   --sidebar-ring: oklch(0.709 0.01 56.259);
 }
 
-.dark {
-  --brand: oklch(0.7 0.19 42);
-  --brand-foreground: oklch(0.18 0.02 40);
-  --brand-soft: oklch(0.3 0.06 40);
-  --canvas: oklch(0.13 0.004 49.25);
-  --background: oklch(0.147 0.004 49.25);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.985 0.001 106.423);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.923 0.003 48.717);
-  --sidebar-primary-foreground: oklch(0.216 0.006 56.043);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    color-scheme: dark;
+    background-color: var(--background);
+  }
+  html.light {
+    color-scheme: light;
+  }
   body {
     @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background-color: color-mix(in oklch, var(--brand) 35%, transparent);
+    color: var(--foreground);
+  }
+  /* Native widgets follow the theme instead of flashing white. */
+  input,
+  textarea,
+  select {
+    color-scheme: inherit;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+  /* Scrollbars: thin charcoal, visible on dark surfaces. */
+  * {
+    scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 20%, transparent);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 32%, transparent);
+    background-clip: content-box;
   }
 
   html[lang="zh-Hans"] body {
@@ -207,7 +279,7 @@
 }
 .metal-flow {
   background-image:
-    linear-gradient(180deg, oklch(1 0 0 / 0.55), transparent 45%, oklch(0 0 0 / 0.08)),
+    linear-gradient(180deg, oklch(1 0 0 / 0.22), transparent 45%, oklch(0 0 0 / 0.35)),
     linear-gradient(100deg,
       oklch(0.83 0.05 245), oklch(0.95 0.015 260), oklch(0.72 0.04 270), oklch(0.85 0.06 305),
       oklch(0.96 0.02 340), oklch(0.8 0.06 20), oklch(0.93 0.04 75), oklch(0.74 0.03 110),

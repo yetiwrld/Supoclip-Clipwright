@@ -1,6 +1,6 @@
 # Development
 
-This guide is for contributors working on SupoClip locally.
+This guide is for contributors working on ClipWright Studio locally.
 
 ## Repository Layout
 

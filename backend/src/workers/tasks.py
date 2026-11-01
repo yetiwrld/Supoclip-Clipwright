@@ -67,6 +67,19 @@ async def process_video_task(
         task_service = TaskService(db)
 
         try:
+            # Fail before any heavy work if the local models are missing: the
+            # creator gets an actionable message instead of a silent cloud
+            # fallback or a job that dies mid-render.
+            from ..config import get_config as _get_config
+            from ..local_ai import preflight_task
+
+            problems = preflight_task(_get_config())
+            if problems:
+                message = "Local AI is not ready: " + " ".join(problems)
+                logger.error("Task %s preflight failed: %s", task_id, message)
+                await progress.update(0, message, "error")
+                raise RuntimeError(message)
+
             # Progress callback
             async def update_progress(
                 percent: int, message: str, status: str = "processing"

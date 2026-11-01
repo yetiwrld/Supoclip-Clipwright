@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create SupoClip's private media bucket and a bucket-scoped runtime identity.
+"""Create ClipWright Studio's private media bucket and a bucket-scoped runtime identity.
 
 Run with backend/.venv/bin/python. Administrative access comes from aws login;
 runtime keys are written only to the requested private file, never stdout.
@@ -32,7 +32,7 @@ def main():
         aws_session_token=credentials.get("SessionToken"), region_name=args.region)
     account = session.client("sts").get_caller_identity()["Account"]
     bucket = args.bucket or f"supoclip-media-{account}"
-    origins = args.origin or ["https://supoclip.com", "https://www.supoclip.com", "http://localhost:3107"]
+    origins = args.origin or ["https://clipwright.example", "http://localhost:3107", "http://localhost:3107"]
     print(json.dumps({"bucket": bucket, "region": args.region, "prefix": "media", "origins": origins,
         "iam_user": args.iam_user, "incomplete_multipart_expiry_days": 1, "apply": args.apply}))
     if not args.apply:
@@ -66,11 +66,11 @@ def main():
         "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 1}}]})
     iam = session.client("iam")
     try:
-        iam.create_user(UserName=args.iam_user, Tags=[{"Key": "Application", "Value": "SupoClip"}])
+        iam.create_user(UserName=args.iam_user, Tags=[{"Key": "Application", "Value": "ClipWright Studio"}])
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "EntityAlreadyExists":
             raise
-    iam.put_user_policy(UserName=args.iam_user, PolicyName="SupoClipMediaOnly", PolicyDocument=json.dumps({
+    iam.put_user_policy(UserName=args.iam_user, PolicyName="ClipWright StudioMediaOnly", PolicyDocument=json.dumps({
         "Version": "2012-10-17", "Statement": [
             {"Effect": "Allow", "Action": "s3:GetBucketLocation", "Resource": arn},
             {"Effect": "Allow", "Action": "s3:ListBucket", "Resource": arn,

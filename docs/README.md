@@ -1,6 +1,6 @@
-# SupoClip Documentation
+# ClipWright Studio Documentation
 
-This directory is the canonical documentation hub for SupoClip.
+This directory is the canonical documentation hub for ClipWright Studio.
 
 If you are new to the project, start here:
 
@@ -12,13 +12,22 @@ If you are new to the project, start here:
 
 ## Documentation Map
 
+- [Local AI](./local-ai.md)
+  - Whisper and Ollama models, formats, sizes and storage paths
+  - Offline-mode enforcement and Docker networking
+  - CPU tuning for a Ryzen 5 4600U / 16 GB machine
+  - Troubleshooting and the internet-dependent features list
+- [Rebranding notes](./REBRANDING.md)
+  - What was renamed from SupoClip and what was deliberately kept
+  - Logo asset provenance and dark-theme token contract
 - [Setup](./setup.md)
   - Docker-first installation
   - Local development commands
   - First-run checklist
   - Production-minded setup notes
 - [Configuration](./configuration.md)
-  - Required API keys
+  - Local model settings (no API keys required)
+  - Optional hosted providers, clearly gated
   - DataFast analytics settings
   - Processing modes
   - Auth and monetization settings
@@ -51,9 +60,9 @@ If you are new to the project, start here:
   - Auth, fonts, billing, and YouTube issues
   - Performance and recovery guidance
 
-## What SupoClip Is
+## What ClipWright Studio Is
 
-SupoClip is an open-source AI video clipping application. It takes long-form videos, transcribes them, uses an LLM to select the most promising short segments, and renders vertical or source-aspect clips with subtitles and optional effects.
+ClipWright Studio is an open-source AI video clipping application. It takes long-form videos, transcribes them, uses an LLM to select the most promising short segments, and renders vertical or source-aspect clips with subtitles and optional effects.
 
 The current repository snapshot includes:
 

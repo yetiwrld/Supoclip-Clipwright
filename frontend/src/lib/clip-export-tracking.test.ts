@@ -27,7 +27,7 @@ describe("trackClipExport", () => {
   });
 
   it("attributes exports to the claimed visit while the sync is pending", async () => {
-    captureAnonymousAttribution("https://www.supoclip.com/?utm_source=reddit&utm_campaign=launch", "");
+    captureAnonymousAttribution("http://localhost:3107/?utm_source=reddit&utm_campaign=launch", "");
     claimAnonymousAttribution("user-a");
 
     await trackClipExport({ userId: "user-a", surface: "task", format: "tiktok" });
@@ -37,7 +37,7 @@ describe("trackClipExport", () => {
   });
 
   it("never attaches another account's attribution", async () => {
-    captureAnonymousAttribution("https://www.supoclip.com/?utm_source=reddit", "");
+    captureAnonymousAttribution("http://localhost:3107/?utm_source=reddit", "");
     claimAnonymousAttribution("user-a");
     confirmAccountAttribution("user-c", { utm_source: "newsletter", captured_at: "2026-10-05T10:00:00.000Z" }, null);
 

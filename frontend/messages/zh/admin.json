@@ -44,7 +44,7 @@
     "statusApproved": "已批准",
     "applied": "{email} · 申请于 {date}",
     "followers": "{count} 位粉丝",
-    "video": "SupoClip 视频",
+    "video": "ClipWright Studio 视频",
     "updateFailed": "无法更新申请",
     "declineReason": "原因，会发给申请人（可选）",
     "revokeNote": "内部备注（可选）",

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ArrowRight, Gift, Link2, Percent, Search, Send } from "lucide-react";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getPublicBillingPlans } from "@/lib/billing-plans";
 import { getSiteUrl } from "@/lib/site";
+import { BrandLogo } from "@/components/brand-mark";
 
 const APPLY_HREF = "/settings/creator-program";
 const VIDEO = {
@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       url: `${siteUrl}/affiliate`,
-      siteName: "SupoClip",
+      siteName: "ClipWright Studio",
       type: "website",
       images: [{ url: `${siteUrl}${VIDEO.poster}`, width: 1920, height: 1080 }],
       videos: [{ url: `${siteUrl}${VIDEO.src}`, width: 1920, height: 1080, type: "video/mp4" }],
@@ -65,7 +65,7 @@ export default async function AffiliatePage() {
       {
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "SupoClip", item: siteUrl },
+          { "@type": "ListItem", position: 1, name: "ClipWright Studio", item: siteUrl },
           { "@type": "ListItem", position: 2, name: t("badge"), item: `${siteUrl}/affiliate` },
         ],
       },
@@ -95,8 +95,8 @@ export default async function AffiliatePage() {
       <header className="border-b bg-background/95">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="SupoClip" width={24} height={24} className="rounded-lg dark:invert" />
-            <span className="text-lg font-bold tracking-tight">SupoClip</span>
+            <BrandLogo size={24} className="rounded-lg" />
+            <span className="text-lg font-bold tracking-tight">ClipWright Studio</span>
           </Link>
           <nav className="flex items-center gap-2" aria-label={t("nav.label")}>
             <Link href="/demo"><Button variant="ghost" size="sm">{t("nav.demo")}</Button></Link>

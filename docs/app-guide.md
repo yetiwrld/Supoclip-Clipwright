@@ -1,10 +1,10 @@
 # App Guide
 
-This guide explains the visible parts of SupoClip and the main user flows.
+This guide explains the visible parts of ClipWright Studio and the main user flows.
 
 ## Product Summary
 
-SupoClip turns long-form videos into short clips. Users can:
+ClipWright Studio turns long-form videos into short clips. Users can:
 
 - Submit a YouTube, Twitch, or Kick URL
 - Upload a video file
@@ -141,7 +141,7 @@ selection for new tasks is personalized with that history.
 - `/sign-in`
 - `/sign-up`
 
-SupoClip uses Better Auth with an email and password flow backed by PostgreSQL through Prisma.
+ClipWright Studio uses Better Auth with an email and password flow backed by PostgreSQL through Prisma.
 
 If `DISABLE_SIGN_UP=true`, sign-up is disabled for new users.
 

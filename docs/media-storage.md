@@ -45,7 +45,7 @@ backend/.venv/bin/python scripts/setup-media-storage.py --apply \
 ```
 
 Supply every deployed frontend origin with repeated `--origin` arguments if the
-defaults (`https://supoclip.com`, `https://www.supoclip.com`, localhost port 3107)
+defaults (`https://clipwright.example`, `http://localhost:3107`, localhost port 3107)
 do not cover the installation. Keep secrets outside Git. Copy configuration into
 the deployment's secret store or private environment file. Apply backend migrations
 before starting the updated worker.

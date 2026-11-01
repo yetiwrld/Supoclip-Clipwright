@@ -22,7 +22,7 @@ const daysLater = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60
 describe("parseAttribution", () => {
   it("reads UTM tags, normalizes case, and keeps the landing path", () => {
     const attribution = parseAttribution(
-      new URL("https://www.supoclip.com/demo?utm_source=Reddit&utm_medium=social&utm_campaign=Launch_Oct&utm_content=selfhosted"),
+      new URL("http://localhost:3107/demo?utm_source=Reddit&utm_medium=social&utm_campaign=Launch_Oct&utm_content=selfhosted"),
       "",
       now,
     );
@@ -38,21 +38,21 @@ describe("parseAttribution", () => {
   });
 
   it("uses ?via= when ?ref= is absent", () => {
-    expect(parseAttribution(new URL("https://www.supoclip.com/?via=Creator42"), "", now).ref).toBe("creator42");
+    expect(parseAttribution(new URL("http://localhost:3107/?via=Creator42"), "", now).ref).toBe("creator42");
   });
 
   it("records external referrers and ignores same-site ones", () => {
-    const url = new URL("https://www.supoclip.com/blog");
+    const url = new URL("http://localhost:3107/blog");
     expect(parseAttribution(url, "https://news.ycombinator.com/item?id=1", now).referrer_host).toBe("news.ycombinator.com");
-    expect(parseAttribution(url, "https://supoclip.com/", now).referrer_host).toBeUndefined();
+    expect(parseAttribution(url, "http://localhost:3107/", now).referrer_host).toBeUndefined();
     expect(parseAttribution(url, "not a url", now).referrer_host).toBeUndefined();
   });
 });
 
 describe("mergeAttribution", () => {
-  const direct = parseAttribution(new URL("https://www.supoclip.com/"), "", now);
-  const reddit = parseAttribution(new URL("https://www.supoclip.com/?utm_source=reddit"), "", now);
-  const hn = parseAttribution(new URL("https://www.supoclip.com/?utm_source=hn"), "", daysLater(1));
+  const direct = parseAttribution(new URL("http://localhost:3107/"), "", now);
+  const reddit = parseAttribution(new URL("http://localhost:3107/?utm_source=reddit"), "", now);
+  const hn = parseAttribution(new URL("http://localhost:3107/?utm_source=hn"), "", daysLater(1));
 
   it("keeps the first visit with a campaign signal", () => {
     expect(mergeAttribution(reddit, hn, daysLater(1))).toBe(reddit);
@@ -128,7 +128,7 @@ describe("normalizeLandingPath", () => {
   });
 
   it("never records a share token from a captured visit", () => {
-    const attribution = parseAttribution(new URL(`https://www.supoclip.com/share/${shareToken}?utm_source=x`), "", now);
+    const attribution = parseAttribution(new URL(`http://localhost:3107/share/${shareToken}?utm_source=x`), "", now);
     expect(JSON.stringify(attribution)).not.toContain(shareToken);
     expect(attribution.landing_path).toBe("/share/:token");
   });
@@ -151,8 +151,8 @@ describe("browser attribution storage", () => {
   });
 
   it("persists the first anonymous touch across later visits", () => {
-    captureAnonymousAttribution("https://www.supoclip.com/demo?utm_source=x&utm_campaign=launch", "");
-    captureAnonymousAttribution("https://www.supoclip.com/pricing?utm_source=newsletter", "");
+    captureAnonymousAttribution("http://localhost:3107/demo?utm_source=x&utm_campaign=launch", "");
+    captureAnonymousAttribution("http://localhost:3107/pricing?utm_source=newsletter", "");
 
     expect(getAnonymousAttribution()).toMatchObject({ utm_source: "x", utm_campaign: "launch", landing_path: "/demo" });
   });
@@ -160,13 +160,13 @@ describe("browser attribution storage", () => {
   it("ignores corrupt storage", () => {
     storage.set(ATTRIBUTION_STORAGE_KEY, "{not json");
     expect(getAnonymousAttribution()).toBeNull();
-    expect(captureAnonymousAttribution("https://www.supoclip.com/", "")).toMatchObject({ landing_path: "/" });
+    expect(captureAnonymousAttribution("http://localhost:3107/", "")).toMatchObject({ landing_path: "/" });
   });
 
   const visitAt = (href: string) => captureAnonymousAttribution(href, "")!;
 
   it("claims the anonymous visit synchronously into one account's pending slot", () => {
-    const visit = visitAt("https://www.supoclip.com/?utm_source=reddit");
+    const visit = visitAt("http://localhost:3107/?utm_source=reddit");
 
     expect(claimAnonymousAttribution("user-a")).toEqual(visit);
 
@@ -177,7 +177,7 @@ describe("browser attribution storage", () => {
   });
 
   it("keeps exports attributed while the claim is pending", () => {
-    visitAt("https://www.supoclip.com/?utm_source=reddit");
+    visitAt("http://localhost:3107/?utm_source=reddit");
     claimAnonymousAttribution("user-a");
 
     expect(isAccountAttributionConfirmed("user-a")).toBe(false);
@@ -185,18 +185,18 @@ describe("browser attribution storage", () => {
   });
 
   it("re-sends an earlier unconfirmed claim instead of claiming a newer visit", () => {
-    const first = visitAt("https://www.supoclip.com/?utm_source=reddit");
+    const first = visitAt("http://localhost:3107/?utm_source=reddit");
     claimAnonymousAttribution("user-a");
-    visitAt("https://www.supoclip.com/?utm_source=newsletter");
+    visitAt("http://localhost:3107/?utm_source=newsletter");
 
     expect(claimAnonymousAttribution("user-a")).toEqual(first);
   });
 
   it("consumes only the exact claimed visit when the server confirms", () => {
-    const sent = visitAt("https://www.supoclip.com/?utm_source=reddit");
+    const sent = visitAt("http://localhost:3107/?utm_source=reddit");
     claimAnonymousAttribution("user-a");
     // User A signs out and a new anonymous journey starts before the response arrives.
-    const newer = visitAt("https://www.supoclip.com/?utm_source=newsletter");
+    const newer = visitAt("http://localhost:3107/?utm_source=newsletter");
 
     confirmAccountAttribution("user-a", sent, sent);
 
@@ -207,7 +207,7 @@ describe("browser attribution storage", () => {
 
   it("does not let a stale response consume a different pending visit", () => {
     const stale = sanitizeAttribution({ captured_at: "2026-10-01T00:00:00.000Z", utm_source: "old" })!;
-    const current = visitAt("https://www.supoclip.com/?utm_source=reddit");
+    const current = visitAt("http://localhost:3107/?utm_source=reddit");
     claimAnonymousAttribution("user-a");
 
     confirmAccountAttribution("user-a", stale, stale);
@@ -218,7 +218,7 @@ describe("browser attribution storage", () => {
 
   it("has a confirmed account discard anonymous visits so later accounts can't inherit them", () => {
     confirmAccountAttribution("user-a", null, null);
-    visitAt("https://www.supoclip.com/?utm_source=reddit");
+    visitAt("http://localhost:3107/?utm_source=reddit");
 
     expect(claimAnonymousAttribution("user-a")).toBeNull();
     expect(getAnonymousAttribution()).toBeNull();

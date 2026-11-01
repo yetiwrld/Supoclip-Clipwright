@@ -1,10 +1,10 @@
 # Architecture
 
-This guide explains how SupoClip is structured and how a task moves through the system.
+This guide explains how ClipWright Studio is structured and how a task moves through the system.
 
 ## High-Level System
 
-SupoClip is a multi-service application built around asynchronous video processing.
+ClipWright Studio is a multi-service application built around asynchronous video processing.
 
 ```text
 Browser
@@ -229,7 +229,7 @@ This separation lets the browser talk to the frontend domain while the frontend 
 
 ### Authentication
 
-SupoClip uses Better Auth with Prisma and PostgreSQL.
+ClipWright Studio uses Better Auth with Prisma and PostgreSQL.
 
 Important details:
 
@@ -293,9 +293,12 @@ The rough pipeline is:
    - YouTube via Apify actor, with `yt-dlp` fallback
    - Uploaded file from the frontend
 2. Transcription
-   - AssemblyAI for word-level timestamps
+   - Local Whisper (`.pt` checkpoint in `WHISPER_MODEL_DIR`) produces word-level
+     timestamps; `youtube_captions` and `assemblyai` remain available but are
+     opt-in and disabled while `OFFLINE_MODE=true`
 3. Segment selection
-   - LLM chooses promising short moments
+   - The local Ollama model (`LLM=ollama:llama3.2:3b` by default) scores windows
+     of the transcript, then a rerank pass picks the moments
 4. Rendering
    - Video trimming and formatting
    - Subtitle placement and styling

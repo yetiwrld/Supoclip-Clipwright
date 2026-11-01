@@ -1,7 +1,7 @@
 {
   "title": "Configurações",
   "intro": "Padrões para novas gerações, notificações e seu plano.",
-  "languageDescription": "O idioma usado no SupoClip.",
+  "languageDescription": "O idioma usado no ClipWright Studio.",
   "signInRequired": {
     "title": "É preciso entrar",
     "body": "Entre para acessar suas configurações",
@@ -70,7 +70,7 @@
     "socialTitle": "Contas sociais",
     "socialDescription": "Conecte YouTube, TikTok e Instagram para publicar clipes e acompanhar o desempenho",
     "creatorTitle": "Programa de criadores",
-    "creatorDescription": "Faça vídeos sobre o SupoClip, ganhe o Pro de graça e um código para o seu público"
+    "creatorDescription": "Faça vídeos sobre o ClipWright Studio, ganhe o Pro de graça e um código para o seu público"
   },
   "save": {
     "saved": "Preferências salvas!",
@@ -85,7 +85,7 @@
   },
   "apiKeys": {
     "title": "Agentes e API",
-    "intro": "Deixe Claude, Cursor e outros agentes de IA cortarem vídeos por você com o <brand>servidor MCP do SupoClip</brand>, ou chame a API REST no seu código. Trate as chaves como senhas: elas dão acesso total à sua conta.",
+    "intro": "Deixe Claude, Cursor e outros agentes de IA cortarem vídeos por você com o <brand>servidor MCP do ClipWright Studio</brand>, ou chame a API REST no seu código. Trate as chaves como senhas: elas dão acesso total à sua conta.",
     "docs": {
       "agentTitle": "Conectar um agente",
       "agentDescription": "Configure o servidor MCP no Claude, no Cursor e em outros clientes MCP.",
@@ -121,7 +121,7 @@
   },
   "creator": {
     "title": "Programa de criadores",
-    "intro": "Faz vídeos sobre o SupoClip? Pegue seu código: seu público ganha <em>20% de desconto nos 3 primeiros meses</em> e você ganha o SupoClip Pro de graça.",
+    "intro": "Faz vídeos sobre o ClipWright Studio? Pegue seu código: seu público ganha <em>20% de desconto nos 3 primeiros meses</em> e você ganha o ClipWright Studio Pro de graça.",
     "howItWorks": "Como funciona",
     "signIn": "Crie uma conta grátis ou entre para se candidatar ao programa de criadores.",
     "createAccount": "Criar conta",
@@ -168,13 +168,13 @@
     },
     "profileLabel": "Link do perfil",
     "profilePlaceholder": "https://www.tiktok.com/@you",
-    "videoLabel": "Um vídeo que você fez sobre o SupoClip",
+    "videoLabel": "Um vídeo que você fez sobre o ClipWright Studio",
     "optional": "(opcional)",
     "videoPlaceholder": "https://",
-    "planLabel": "Como você vai divulgar o SupoClip?",
+    "planLabel": "Como você vai divulgar o ClipWright Studio?",
     "termsTitle": "Termos do programa",
     "termSponsored": "Marque posts patrocinados (por exemplo #ad).",
-    "termAds": "Não anuncie o nome SupoClip nem publique seu código em sites de cupom ou oferta.",
+    "termAds": "Não anuncie o nome ClipWright Studio nem publique seu código em sites de cupom ou oferta.",
     "termOwn": "Não use o seu próprio código.",
     "termEnd": "Podemos encerrar o programa ou remover um criador a qualquer momento.",
     "agree": "Concordo com os termos do programa",

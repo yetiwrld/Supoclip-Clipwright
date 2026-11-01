@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { ThemeProvider, useAppTheme } from "./theme-provider";
+import { ThemeProvider } from "./theme-provider";
 import { ThemeToggle } from "./theme-toggle";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -31,7 +31,7 @@ afterEach(() => {
 
 function renderToggle(defaultTheme: "light" | "dark") {
   return render(
-    <NextThemesProvider attribute="class" defaultTheme={defaultTheme} enableSystem={false}>
+    <NextThemesProvider attribute="class" defaultTheme={defaultTheme} enableSystem={false} storageKey="clipwright-theme">
       <TooltipProvider>
         <ThemeToggle />
       </TooltipProvider>
@@ -39,62 +39,48 @@ function renderToggle(defaultTheme: "light" | "dark") {
   );
 }
 
-it("switches from light to dark and back", async () => {
+it("switches from dark to light and back", async () => {
   const user = userEvent.setup();
-  renderToggle("light");
+  renderToggle("dark");
   const toggle = screen.getByRole("button", { name: "Switch light/dark theme" });
 
   await user.click(toggle);
-  expect(document.documentElement).toHaveClass("dark");
-  expect(storage.get("theme")).toBe("dark");
+  expect(document.documentElement).toHaveClass("light");
+  expect(storage.get("clipwright-theme")).toBe("light");
 
   await user.click(toggle);
-  expect(document.documentElement).toHaveClass("light");
-  expect(storage.get("theme")).toBe("light");
+  expect(document.documentElement).toHaveClass("dark");
+  expect(storage.get("clipwright-theme")).toBe("dark");
 });
 
-it("switches to light when the app starts dark", async () => {
-  const user = userEvent.setup();
-  renderToggle("dark");
-
-  await user.click(screen.getByRole("button", { name: "Switch light/dark theme" }));
-  expect(document.documentElement).toHaveClass("light");
+it("starts dark on every route, including marketing and auth pages", () => {
+  for (const pathname of ["/", "/list", "/sign-in", "/blog", "/tasks/abc", "/share/token"]) {
+    document.documentElement.className = "";
+    storage.clear();
+    navigation.pathname = pathname;
+    const view = render(<ThemeProvider><span /></ThemeProvider>);
+    expect(document.documentElement, pathname).toHaveClass("dark");
+    view.unmount();
+  }
 });
 
-it("starts light even when the system prefers dark", () => {
+it("ignores a dark system preference only in the sense that dark is already the default", () => {
   navigation.pathname = "/list";
   render(<ThemeProvider><span /></ThemeProvider>);
-  expect(document.documentElement).toHaveClass("light");
+  expect(document.documentElement).toHaveClass("dark");
 });
 
-it("keeps marketing pages light after the app was switched to dark", () => {
-  storage.set("theme", "dark");
+it("keeps the saved light choice after a reload", () => {
+  storage.set("clipwright-theme", "light");
   navigation.pathname = "/sign-in";
   render(<ThemeProvider><span /></ThemeProvider>);
   expect(document.documentElement).toHaveClass("light");
   expect(document.documentElement).not.toHaveClass("dark");
 });
 
-it("uses the saved theme on app routes", () => {
-  storage.set("theme", "dark");
-  navigation.pathname = "/tasks/abc";
+it("keeps the saved dark choice on auth routes", () => {
+  storage.set("clipwright-theme", "dark");
+  navigation.pathname = "/sign-in";
   render(<ThemeProvider><span /></ThemeProvider>);
   expect(document.documentElement).toHaveClass("dark");
-});
-
-function SignedInShell() {
-  useAppTheme(true);
-  return null;
-}
-
-it("uses the saved theme on / once the signed-in app shell mounts", () => {
-  storage.set("theme", "dark");
-  const view = render(<ThemeProvider><span /></ThemeProvider>);
-  expect(document.documentElement).toHaveClass("light");
-
-  view.rerender(<ThemeProvider><SignedInShell /></ThemeProvider>);
-  expect(document.documentElement).toHaveClass("dark");
-
-  view.rerender(<ThemeProvider><span /></ThemeProvider>);
-  expect(document.documentElement).toHaveClass("light");
 });

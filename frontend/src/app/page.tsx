@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { HomeRouter } from "@/components/home-router";
 import { getLandingFaqs } from "@/lib/landing-faq";
-import { APP_STORE_URL, COMPANY_NAME, getSiteUrl } from "@/lib/site";
+import { COMPANY_NAME, getSiteUrl } from "@/lib/site";
 
 const siteUrl = getSiteUrl();
 
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description: t("metadata.openGraphDescription"),
       url: siteUrl,
-      siteName: "SupoClip",
+      siteName: "ClipWright Studio",
       type: "website",
     },
     twitter: {
@@ -47,16 +47,16 @@ export default async function HomePage() {
     {
       "@context": "https://schema.org",
       "@type": "Organization",
-      name: "SupoClip",
+      name: "ClipWright Studio",
       legalName: COMPANY_NAME,
       url: siteUrl,
       logo: `${siteUrl}/logo.png`,
-      sameAs: ["https://github.com/FujiwaraChoki/supoclip", APP_STORE_URL],
+      sameAs: ["https://github.com/FujiwaraChoki/supoclip"],
     },
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      name: "SupoClip",
+      name: "ClipWright Studio",
       applicationCategory: "MultimediaApplication",
       operatingSystem: "Web, Docker",
       url: siteUrl,
@@ -77,23 +77,8 @@ export default async function HomePage() {
     },
     {
       "@context": "https://schema.org",
-      "@type": "MobileApplication",
-      name: "SupoClip",
-      applicationCategory: "MultimediaApplication",
-      operatingSystem: "iOS",
-      url: APP_STORE_URL,
-      installUrl: APP_STORE_URL,
-      description: t("metadata.structured.ios"),
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-      },
-    },
-    {
-      "@context": "https://schema.org",
       "@type": "WebSite",
-      name: "SupoClip",
+      name: "ClipWright Studio",
       url: siteUrl,
       description: t("metadata.structured.website"),
     },

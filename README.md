@@ -1,126 +1,184 @@
-<p align="center">
-  <a href="https://www.supoclip.com">
-    <img src="assets/banner.jpg" alt="SupoClip dashboard with video input, caption controls, and recent clips" width="100%" />
-  </a>
-</p>
+<div align="center">
 
-<h3 align="center">Fuck OpusClip.</h3>
+<img src="frontend/public/brand/clipwright-logo.png" alt="ClipWright Studio" width="140" />
 
-<p align="center">
-  ... because good video clips shouldn't come with ugly watermarks or platform lock-in.
-</p>
+# ClipWright Studio
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
-  <a href="https://www.supoclip.com"><img src="https://img.shields.io/badge/hosted-supoclip.com-black.svg" alt="Hosted at supoclip.com" /></a>
-  <a href="docs/README.md"><img src="https://img.shields.io/badge/docs-docs%2F-green.svg" alt="Documentation" /></a>
-</p>
+**Local-first AI video clipping. Whisper and Ollama on your own machine.**
 
-<p align="center">
-  <a href="https://apps.apple.com/us/app/supoclip/id6784760040">
-    <img src="frontend/public/app-store-badge.svg" alt="Download SupoClip on the App Store" height="40" />
-  </a>
-  &nbsp;
-  <a href="https://www.producthunt.com/products/supoclip?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-supoclip" target="_blank" rel="noopener noreferrer">
-    <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1276786&theme=dark" alt="SupoClip on Product Hunt" height="40" />
-  </a>
-</p>
+No AI API keys. No uploads. No per-minute billing.
+
+</div>
 
 ---
 
-SupoClip is an open-source, AI-powered video clipping tool. Give it a long video — a podcast, a talk, a stream VOD — and it finds the most viral-worthy moments, scores them, and renders them as vertical 9:16 clips with face-centered cropping, word-synced subtitles, hook titles, and optional B-roll. Run it yourself, customize it, inspect it — or use the hosted version and skip the setup.
+ClipWright Studio turns long videos into short, captioned vertical clips. It
+runs the whole pipeline on your computer: a local **Whisper** model writes the
+transcript, a local **Ollama** model (`llama3.2:3b` by default) picks the
+moments worth posting, and **FFmpeg** renders the result. Your footage,
+transcripts and prompts never leave the machine.
 
-**See it first:** [watch real clips SupoClip generated](https://www.supoclip.com/demo) from a long-form interview, or follow the [self-hosting tutorial](https://www.supoclip.com/blog/self-host-supoclip-docker) to run it on your own machine.
+> **Provenance.** ClipWright Studio is a rebrand and local-first transformation
+> of the open-source [SupoClip](https://github.com/FujiwaraChoki/supoclip)
+> project (AGPL-3.0). The original copyright and licence notices are retained.
+> See [docs/REBRANDING.md](docs/REBRANDING.md) for exactly what was renamed and
+> which technical identifiers were deliberately kept.
 
-## Ways to Use SupoClip
+## What you get
 
-| Option | Details |
+- **Offline transcription** — OpenAI Whisper (`small` by default, `base` if you
+  want it faster) with word-level timestamps, cached on disk.
+- **Local clip selection** — Ollama `llama3.2:3b` reads the transcript, scores
+  hooks/engagement/value/shareability and proposes clips. No cloud fallback.
+- **Local AI editing** — the same model turns "cut the filler and zoom in" into
+  typed, validated editor operations.
+- **A real editor** — timeline trim/split/merge, word-level transcript fixes,
+  caption styling, reframing, effects, hook titles, export presets.
+- **Persistent projects** — sources, transcripts, clips, edits and renders live
+  in `./data` and survive restarts and container rebuilds.
+- **A dark, studio-grade interface** — charcoal surfaces, orange accent drawn
+  from the app icon, consistent tokens across landing, auth, library, editor and
+  dialogs.
+
+Optional online features (YouTube/Twitch/Kick downloads, Pexels B-roll, social
+publishing) are clearly labelled in the UI and are never required.
+
+## Requirements
+
+| | |
 |---|---|
-| **Hosted web app** | [www.supoclip.com](https://www.supoclip.com) — no infrastructure to run |
-| **iOS app** | [SupoClip on the App Store](https://apps.apple.com/us/app/supoclip/id6784760040) — the same hosted pipeline, from your iPhone |
-| **Self-host** | Docker Compose setup below, or the step-by-step [self-hosting tutorial](https://www.supoclip.com/blog/self-host-supoclip-docker) — AGPL-3.0, unlimited usage on your own hardware |
-| **MCP server** | [`mcp/`](mcp/) — use SupoClip from Claude, Cursor, and other MCP clients |
-| **REST API** | API keys from `/settings/api-keys` authenticate the backend directly — see the [API reference](docs/api-reference.md) |
+| OS | Windows 11 Pro (developed against), macOS, Linux |
+| CPU | Any x86-64 CPU. Tested profile: AMD Ryzen 5 4600U, 16 GB RAM, integrated Radeon |
+| GPU | **Not required** — no CUDA, no ROCm |
+| Docker | Docker Desktop 4.x with Compose v2 |
+| Ollama | [ollama.com/download](https://ollama.com/download) |
+| Disk | ~2 GB for the Docker images, ~0.5 GB (`small`) or ~0.15 GB (`base`) for Whisper, ~2 GB for `llama3.2:3b` |
 
-## Why SupoClip Exists
+## First-time setup (Windows 11, PowerShell)
 
-OpusClip is genuinely good at what it does — AI clip selection, accurate captions, virality scoring. But your usage is metered by plan, some exports carry platform branding, and your content and workflows live on their servers under their terms.
+```powershell
+git clone https://github.com/yetiwrld/Supoclip-Clipwright.git clipwright
+cd clipwright
 
-SupoClip gives you the same core pipeline without the leash:
+# 1. Check the machine, write .env, download the models (explicit, one time)
+powershell -ExecutionPolicy Bypass -File scripts\setup-clipwright.ps1 -InstallModels
 
-- **Self-hostable** — run it on your own hardware, process as much as it can handle
-- **No watermarks** — your content stays yours
-- **Open source** — AGPL-3.0, full transparency, fork and extend it however you like
-- **Hosted option** — when you'd rather not manage servers, the cloud version is there
+# 2. Open the studio
+start http://localhost:3107
+```
 
-## Features
+`-InstallModels` is the only step that downloads anything: it pulls
+`llama3.2:3b` into Ollama's store and the Whisper checkpoint into
+`./data/models/whisper`. Without it, setup only checks what is missing.
 
-- **YouTube, Twitch, Kick & uploads** — paste a YouTube video, a Twitch VOD or clip, or a Kick VOD or clip, or upload your own file (live streams are not supported). Twitch and Kick download providers and the optional Apify fallbacks are set in [docs/configuration.md](docs/configuration.md#twitch-and-kick-imports)
+Prefer doing it by hand?
 
-- **AI clip selection** — an LLM (Gemini, GPT, Claude, or a local Ollama model) picks the 3–7 most clip-worthy segments from the transcript
-- **Virality scoring** — every clip gets hook, engagement, value, and shareability scores
-- **Smart vertical cropping** — face detection keeps the speaker centered in the 9:16 frame
-- **Word-synced subtitles** — AssemblyAI word-level timestamps, custom fonts, caption templates with animation styles
-- **Hook titles** — an AI-written headline burned into the top of each clip's opening seconds
-- **B-roll & transitions** — optional Pexels stock footage overlays and transition effects
-- **Built-in editor** — trim, split, and merge clips, then export with platform presets (TikTok, Reels, Shorts)
-- **Direct publishing** — connect your own YouTube, TikTok and Instagram accounts, then post or schedule clips from the task page
-- **Performance loop** — views, likes, comments and shares flow back from each platform and steer future clip selection toward what works for your audience
-- **Real-time progress** — live pipeline updates streamed to the browser while your video processes
+```powershell
+copy .env.example .env
+python scripts\setup_local_ai.py --write-env        # local-AI defaults, never overwrites
+python scripts\setup_local_ai.py --install-whisper  # ~466 MB for "small"
+ollama pull llama3.2:3b                             # ~2 GB
+docker compose up -d --build
+python scripts\setup_local_ai.py --check            # verifies everything, incl. /health
+```
 
-## Quick Start
-
-You need Docker, an [AssemblyAI](https://www.assemblyai.com/) API key for transcription, and one LLM provider key (Google, OpenAI, Anthropic, or a local Ollama).
+macOS / Linux:
 
 ```bash
-git clone https://github.com/FujiwaraChoki/supoclip.git
-cd supoclip
+cp .env.example .env
+python3 scripts/setup_local_ai.py --write-env
+python3 scripts/setup_local_ai.py --install-whisper
+ollama pull llama3.2:3b
+docker compose up -d --build
 ```
 
-Create a `.env` in the root with your keys:
-
-```env
-ASSEMBLY_AI_API_KEY=your_assemblyai_api_key
-LLM=google-gla:gemini-3-flash-preview
-GOOGLE_API_KEY=your_google_api_key
-```
-
-Then start everything:
+## Everyday commands
 
 ```bash
-docker-compose up -d
+docker compose up -d              # start
+docker compose stop               # stop (state and projects kept)
+docker compose restart backend worker ai-worker
+docker compose down               # remove containers, keep ./data and volumes
+docker compose logs -f backend    # logs
 ```
 
-First startup takes a few minutes; watch it with `docker-compose logs -f`. Once healthy, open [http://localhost:3107](http://localhost:3107), create an account, and start clipping. The backend API lives at [http://localhost:8000](http://localhost:8000) with interactive docs at `/docs`.
+The app is at <http://localhost:3107>, the API at <http://localhost:8000>
+(interactive docs at `/docs`).
 
-The template sets `FRONTEND_PORT=3107`. Existing deployments without this setting keep port `3001`; preserve that port if your production reverse proxy uses it. See the [setup guide](docs/setup.md) for custom ports and public URLs.
+## Verify the local models
 
-To run fully local with Whisper and Ollama (including the Docker networking Ollama needs), see the [self-hosting tutorial](https://www.supoclip.com/blog/self-host-supoclip-docker#local). To use a different LLM provider or configure the optional pieces (B-roll, analytics, emails, YouTube metadata), see the [configuration guide](docs/configuration.md). If something misbehaves, the [troubleshooting guide](docs/troubleshooting.md) covers the common failure modes.
+```bash
+# One-shot report: Docker, FFmpeg, Ollama, model presence, backend health
+python scripts/setup_local_ai.py --check
+
+# What Ollama actually has
+ollama list
+
+# What the running backend sees (live probe, same call the Settings panel makes)
+curl http://localhost:8000/local-ai/status
+
+# Whisper checkpoint on disk
+dir data\models\whisper     # Windows
+ls -lh data/models/whisper  # macOS/Linux
+```
+
+Inside the app: **Settings → Offline & local AI** shows the same values, with a
+red/amber row and the exact command for anything that is missing, plus the
+Offline Mode switch (persisted to `./data/config/offline-mode.json`, honoured by
+the API and both workers).
+
+## Where your data lives
+
+| Path | Contents |
+|---|---|
+| `./data/uploads/` | Imported source media and transcription caches |
+| `./data/clips/` | Rendered clips and exports |
+| `./data/models/whisper/` | Whisper checkpoints (`small.pt`, `base.pt`, …) |
+| `./data/ollama/` | Only used when you run Ollama as a compose service |
+| Docker volume `postgres_data` | Project/task database (accounts, transcripts, edits) |
+| Docker volume `redis_data` | Job queue |
+
+Uploads, clips and models are host bind mounts, so `docker compose down` (or a
+rebuild) never deletes them. Set `CLIPWRIGHT_DATA_DIR=D:\clipwright-data` to
+move the whole tree elsewhere.
+
+## Configuration worth knowing
+
+All in `.env` (see `.env.example` for the annotated list):
+
+```dotenv
+OFFLINE_MODE=true           # no hosted AI, ever
+ALLOW_HOSTED_AI=false       # hosted providers need this AND OFFLINE_MODE=false
+TRANSCRIPTION_PROVIDER=whisper
+WHISPER_MODEL_SIZE=small    # switch to "base" if CPU transcription is too slow
+WHISPER_MODEL_DIR=./data/models/whisper
+LLM=ollama:llama3.2:3b      # any pulled Ollama model works, e.g. ollama:qwen2.5:7b
+AI_EDIT_MODEL=ollama:llama3.2:3b
+OLLAMA_BASE_URL=            # empty = auto (localhost, or host.docker.internal in Docker)
+```
+
+## Tests
+
+```bash
+cd backend && uv sync --frozen --all-groups && .venv/bin/pytest tests/unit
+cd frontend && pnpm install --frozen-lockfile && pnpm test
+cd frontend && pnpm lint && pnpm typecheck
+```
+
+`make test` runs backend + frontend. Browser tests (`pnpm test:e2e`) need
+PostgreSQL and a generated Prisma client.
 
 ## Documentation
 
-Everything beyond this page lives in [`docs/`](docs/README.md):
+- [docs/local-ai.md](docs/local-ai.md) — models, storage, tuning, troubleshooting
+- [docs/setup.md](docs/setup.md) — full installation reference
+- [docs/configuration.md](docs/configuration.md) — every environment variable
+- [docs/REBRANDING.md](docs/REBRANDING.md) — what changed from SupoClip
+- [docs/editor.md](docs/editor.md), [docs/media-storage.md](docs/media-storage.md),
+  [docs/architecture.md](docs/architecture.md)
 
-| Guide | What it covers |
-|---|---|
-| [Setup](docs/setup.md) | Docker-first install, local development, first-run checklist |
-| [Configuration](docs/configuration.md) | Every environment variable, operating modes, provider options |
-| [App Guide](docs/app-guide.md) | Screens, workflows, admin features, hosted vs self-host |
-| [Architecture](docs/architecture.md) | How the frontend, API, worker, queue, and pipeline fit together |
-| [API Reference](docs/api-reference.md) | Backend endpoints, API keys, admin and billing routes |
-| [Development](docs/development.md) | Running locally without Docker, testing, contributing workflow |
-| [Troubleshooting](docs/troubleshooting.md) | Fixes for the common ways things go wrong |
+## Licence
 
-## Development & Testing
-
-The stack runs locally without Docker too — see [development](docs/development.md) for the backend (`uv` + FastAPI + ARQ worker) and frontend (Next.js + pnpm) commands. The test suite spans pytest, Vitest, and Playwright, all reachable from the repo root:
-
-```bash
-make test
-```
-
-## License
-
-SupoClip is released under the [AGPL-3.0 License](LICENSE).
-
-Contributions are accepted under the terms in [CONTRIBUTING.md](CONTRIBUTING.md), including a license grant that allows the project owner to sublicense and relicense contributed code.
+AGPL-3.0 — see [LICENSE](LICENSE). ClipWright Studio is derived from SupoClip
+(Copyright the SupoClip contributors), and that attribution, together with the
+AGPL-3.0 obligations, must be preserved in any redistribution.

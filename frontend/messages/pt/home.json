@@ -110,7 +110,7 @@
     "seePlans": "Ver planos",
     "limitTitle": "Você usou todos os {length} de vídeo deste mês",
     "limitWithPlan": "{refreshes} Ou continue com o {plan}: {limit} de vídeo por mês.",
-    "limitAppStore": "{refreshes} Você pode mudar de plano no app iOS do SupoClip.",
+    "limitAppStore": "{refreshes} Você pode mudar de plano no app iOS do ClipWright Studio.",
     "getPlan": "Assinar {plan}",
     "remaining": "{count, plural, one {Resta # minuto de vídeo este mês} other {Restam # minutos de vídeo este mês}}",
     "nearWithPlan": "{refreshes} Precisa de mais espaço? O {plan} oferece {limit} de vídeo por mês.",

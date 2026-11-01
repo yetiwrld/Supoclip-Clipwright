@@ -27,7 +27,7 @@ services:
         - POSTHOG_PERSONAL_API_KEY=${POSTHOG_PERSONAL_API_KEY:-}
         - POSTHOG_PROJECT_ID=${POSTHOG_PROJECT_ID:-}
         - POSTHOG_RELEASE_VERSION=${POSTHOG_RELEASE_VERSION:-}
-    container_name: supoclip-frontend
+    container_name: clipwright-frontend
     ports:
       # Keep the legacy port for deployments whose proxy already uses 3001.
       # .env.example selects 3107 for new self-hosted installations.
@@ -83,7 +83,7 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-SupoClip <onboarding@example.com>}"
+      - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-ClipWright Studio <onboarding@example.com>}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,7 +104,7 @@ services:
       dockerfile: Dockerfile
       args:
         BACKEND_CPU_ONLY: ${BACKEND_CPU_ONLY:-false}
-    container_name: supoclip-backend
+    container_name: clipwright-backend
     # linux/amd64 by default, including on Apple Silicon (emulated). Set
     # BACKEND_PLATFORM=linux/arm64 with BACKEND_CPU_ONLY=true for a native
     # arm64 image. CUDA wheels are amd64-only.
@@ -114,8 +114,14 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/src:/app/src
-      - uploads:/app/uploads
-      - clips:/app/clips
+      # User data lives on the host so projects, sources and renders survive
+      # container recreation: ./data/{uploads,clips,models}
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/uploads:/app/uploads
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/clips:/app/clips
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/models:/models
+      # Runtime settings written from the UI (offline mode switch), shared by
+      # every process so one answer survives restarts and rebuilds.
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/config:/config
       - ./backend/fonts:/app/fonts
       - ./backend/transitions:/app/transitions
     environment:
@@ -126,6 +132,7 @@ services:
       - POSTHOG_HOST=${POSTHOG_HOST:-https://eu.i.posthog.com}
       - DATABASE_URL=postgresql+asyncpg://supoclip:supoclip_password@postgres:5432/supoclip
       - TEMP_DIR=/app/uploads
+      - CLIPWRIGHT_CONFIG_DIR=/config
       - MEDIA_STORAGE=${MEDIA_STORAGE:-local}
       - MEDIA_S3_BUCKET=${MEDIA_S3_BUCKET:-}
       - MEDIA_S3_PREFIX=${MEDIA_S3_PREFIX:-media}
@@ -186,20 +193,26 @@ services:
       - YOUTUBE_SOURCE_CACHE=${YOUTUBE_SOURCE_CACHE:-on}
       - YOUTUBE_SOURCE_CACHE_TTL_SECONDS=${YOUTUBE_SOURCE_CACHE_TTL_SECONDS:-604800}
       - APIFY_EXPENSIVE_FALLBACKS=${APIFY_EXPENSIVE_FALLBACKS:-false}
-      - LLM=${LLM:-}
+      # ---- Local AI (offline-first defaults) ----
+      - OFFLINE_MODE=${OFFLINE_MODE:-true}
+      - ALLOW_HOSTED_AI=${ALLOW_HOSTED_AI:-false}
+      - MODELS_DIR=/models
+      - WHISPER_MODEL_DIR=/models/whisper
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+      - LLM=${LLM:-ollama:llama3.2:3b}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-6-luna}
       - RERANK_LLM=${RERANK_LLM:-}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AI_EDIT_MODEL=${AI_EDIT_MODEL:-claude-sonnet-5-5}
+      - AI_EDIT_MODEL=${AI_EDIT_MODEL:-ollama:llama3.2:3b}
       - AI_EDIT_DAILY_LIMIT=${AI_EDIT_DAILY_LIMIT:-150}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
-      - TRANSCRIPTION_PROVIDER=${TRANSCRIPTION_PROVIDER:-assemblyai}
+      - TRANSCRIPTION_PROVIDER=${TRANSCRIPTION_PROVIDER:-whisper}
       - TRANSCRIPTION_LANGUAGE=${TRANSCRIPTION_LANGUAGE:-}
-      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-medium}
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-small}
       - MAX_VIDEO_DURATION=${MAX_VIDEO_DURATION:-5400}
       - PRO_YOUTUBE_MAX_VIDEO_DURATION=${PRO_YOUTUBE_MAX_VIDEO_DURATION:-5400}
       - SCALE_YOUTUBE_MAX_VIDEO_DURATION=${SCALE_YOUTUBE_MAX_VIDEO_DURATION:-10800}
@@ -215,13 +228,13 @@ services:
       - BACKEND_AUTH_SECRET=${BACKEND_AUTH_SECRET}
       - APP_SETTINGS_ENCRYPTION_KEY=${APP_SETTINGS_ENCRYPTION_KEY}
       - AUTH_SIGNATURE_TTL_SECONDS=${AUTH_SIGNATURE_TTL_SECONDS:-300}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3107,http://sp.localhost:3107,http://supoclip.localhost:3107}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3107,http://sp.localhost:3107,http://clipwright.localhost:3107,http://supoclip.localhost:3107}
       - PRO_PLAN_MINUTE_LIMIT=${PRO_PLAN_MINUTE_LIMIT:-600}
       - SCALE_PLAN_MINUTE_LIMIT=${SCALE_PLAN_MINUTE_LIMIT:-1500}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-SupoClip <onboarding@example.com>}"
+      - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-ClipWright Studio <onboarding@example.com>}"
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3107}
       - DISCORD_FEEDBACK_WEBHOOK_URL=${DISCORD_FEEDBACK_WEBHOOK_URL}
       # Social publishing (OAuth apps; users connect their own accounts)
@@ -259,7 +272,7 @@ services:
     build:
       context: ./mcp
       dockerfile: Dockerfile
-    container_name: supoclip-mcp
+    container_name: clipwright-mcp
     ports:
       - "127.0.0.1:${SUPOCLIP_MCP_PORT:-9100}:9100"
     volumes:
@@ -271,7 +284,7 @@ services:
       - SUPOCLIP_MCP_TRANSPORT=${SUPOCLIP_MCP_TRANSPORT:-sse}
       - SUPOCLIP_MCP_HOST=0.0.0.0
       - SUPOCLIP_MCP_PORT=9100
-      - SUPOCLIP_MCP_PUBLIC_URL=${SUPOCLIP_MCP_PUBLIC_URL:-https://mcp.supoclip.com}
+      - SUPOCLIP_MCP_PUBLIC_URL=${SUPOCLIP_MCP_PUBLIC_URL:-https://mcp.clipwright.example}
       - SUPOCLIP_MCP_REQUIRE_BEARER_AUTH=${SUPOCLIP_MCP_REQUIRE_BEARER_AUTH:-true}
     restart: unless-stopped
     depends_on:
@@ -291,16 +304,24 @@ services:
       dockerfile: Dockerfile
       args:
         BACKEND_CPU_ONLY: ${BACKEND_CPU_ONLY:-false}
-    container_name: supoclip-worker
+    container_name: clipwright-worker
     # Same platform override as the backend service.
     platform: "${BACKEND_PLATFORM:-linux/amd64}"
     command: [".venv/bin/arq", "src.workers.tasks.WorkerSettings"]
     volumes:
       - ./backend/src:/app/src
-      - uploads:/app/uploads
-      - clips:/app/clips
+      # User data lives on the host so projects, sources and renders survive
+      # container recreation: ./data/{uploads,clips,models}
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/uploads:/app/uploads
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/clips:/app/clips
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/models:/models
+      # Runtime settings written from the UI (offline mode switch), shared by
+      # every process so one answer survives restarts and rebuilds.
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/config:/config
       - ./backend/fonts:/app/fonts
       - ./backend/transitions:/app/transitions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment: &worker-environment
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
@@ -309,6 +330,7 @@ services:
       - POSTHOG_HOST=${POSTHOG_HOST:-https://eu.i.posthog.com}
       - DATABASE_URL=postgresql+asyncpg://supoclip:supoclip_password@postgres:5432/supoclip
       - TEMP_DIR=/app/uploads
+      - CLIPWRIGHT_CONFIG_DIR=/config
       - MEDIA_STORAGE=${MEDIA_STORAGE:-local}
       - MEDIA_S3_BUCKET=${MEDIA_S3_BUCKET:-}
       - MEDIA_S3_PREFIX=${MEDIA_S3_PREFIX:-media}
@@ -369,20 +391,26 @@ services:
       - YOUTUBE_SOURCE_CACHE=${YOUTUBE_SOURCE_CACHE:-on}
       - YOUTUBE_SOURCE_CACHE_TTL_SECONDS=${YOUTUBE_SOURCE_CACHE_TTL_SECONDS:-604800}
       - APIFY_EXPENSIVE_FALLBACKS=${APIFY_EXPENSIVE_FALLBACKS:-false}
-      - LLM=${LLM:-}
+      # ---- Local AI (offline-first defaults) ----
+      - OFFLINE_MODE=${OFFLINE_MODE:-true}
+      - ALLOW_HOSTED_AI=${ALLOW_HOSTED_AI:-false}
+      - MODELS_DIR=/models
+      - WHISPER_MODEL_DIR=/models/whisper
+      - WHISPER_DEVICE=${WHISPER_DEVICE:-cpu}
+      - LLM=${LLM:-ollama:llama3.2:3b}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - OPENROUTER_FALLBACK_MODEL=${OPENROUTER_FALLBACK_MODEL:-openai/gpt-6-luna}
       - RERANK_LLM=${RERANK_LLM:-}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - AI_EDIT_MODEL=${AI_EDIT_MODEL:-claude-sonnet-5-5}
+      - AI_EDIT_MODEL=${AI_EDIT_MODEL:-ollama:llama3.2:3b}
       - AI_EDIT_DAILY_LIMIT=${AI_EDIT_DAILY_LIMIT:-150}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
       - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
-      - TRANSCRIPTION_PROVIDER=${TRANSCRIPTION_PROVIDER:-assemblyai}
+      - TRANSCRIPTION_PROVIDER=${TRANSCRIPTION_PROVIDER:-whisper}
       - TRANSCRIPTION_LANGUAGE=${TRANSCRIPTION_LANGUAGE:-}
-      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-medium}
+      - WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE:-small}
       - MAX_VIDEO_DURATION=${MAX_VIDEO_DURATION:-5400}
       - PRO_YOUTUBE_MAX_VIDEO_DURATION=${PRO_YOUTUBE_MAX_VIDEO_DURATION:-5400}
       - SCALE_YOUTUBE_MAX_VIDEO_DURATION=${SCALE_YOUTUBE_MAX_VIDEO_DURATION:-10800}
@@ -398,13 +426,13 @@ services:
       - BACKEND_AUTH_SECRET=${BACKEND_AUTH_SECRET}
       - APP_SETTINGS_ENCRYPTION_KEY=${APP_SETTINGS_ENCRYPTION_KEY}
       - AUTH_SIGNATURE_TTL_SECONDS=${AUTH_SIGNATURE_TTL_SECONDS:-300}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3107,http://sp.localhost:3107,http://supoclip.localhost:3107}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3107,http://sp.localhost:3107,http://clipwright.localhost:3107,http://supoclip.localhost:3107}
       - PRO_PLAN_MINUTE_LIMIT=${PRO_PLAN_MINUTE_LIMIT:-600}
       - SCALE_PLAN_MINUTE_LIMIT=${SCALE_PLAN_MINUTE_LIMIT:-1500}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-SupoClip <onboarding@example.com>}"
+      - "SES_FROM_EMAIL=${SES_FROM_EMAIL:-ClipWright Studio <onboarding@example.com>}"
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3107}
       # Social publishing (OAuth apps; users connect their own accounts)
       - YOUTUBE_OAUTH_CLIENT_ID=${YOUTUBE_OAUTH_CLIENT_ID}
@@ -448,12 +476,16 @@ services:
       dockerfile: Dockerfile
       args:
         BACKEND_CPU_ONLY: ${BACKEND_CPU_ONLY:-false}
-    container_name: supoclip-ai-worker
+    container_name: clipwright-ai-worker
     platform: "${BACKEND_PLATFORM:-linux/amd64}"
     command: [".venv/bin/arq", "src.workers.ai_worker.AIWorkerSettings"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./backend/src:/app/src
-      - uploads:/app/uploads
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/uploads:/app/uploads
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/models:/models
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/config:/config
     environment: *worker-environment
     restart: unless-stopped
     depends_on:
@@ -473,7 +505,7 @@ services:
   # compose network; the provider has no authentication of its own.
   bgutil:
     image: brainicism/bgutil-ytdlp-pot-provider:2.0.2
-    container_name: supoclip-bgutil
+    container_name: clipwright-bgutil
     profiles: ["youtube-proxy"]
     init: true
     expose:
@@ -483,7 +515,7 @@ services:
   # Ships container logs to Axiom. Opt-in: COMPOSE_PROFILES=axiom + AXIOM_TOKEN.
   vector:
     image: timberio/vector:0.60.0-alpine
-    container_name: supoclip-vector
+    container_name: clipwright-vector
     profiles: ["axiom"]
     volumes:
       - ./observability/vector.yaml:/etc/vector/vector.yaml:ro
@@ -495,13 +527,35 @@ services:
       # it the literal "${AXIOM_TOKEN}" is sent and Axiom answers Unauthorized.
       - VECTOR_DANGEROUSLY_ALLOW_ENV_VAR_INTERPOLATION=true
       - AXIOM_TOKEN=${AXIOM_TOKEN:-}
-      - AXIOM_DATASET=${AXIOM_DATASET:-supoclip-prod}
+      - AXIOM_DATASET=${AXIOM_DATASET:-clipwright-prod}
     restart: unless-stopped
+
+  # Optional local LLM server. Most Windows users run Ollama natively on the
+  # host; this service exists for Docker-only setups. Start it with:
+  #   docker compose --profile ollama up -d ollama
+  # then set OLLAMA_BASE_URL=http://ollama:11434/v1 and pull the model with
+  #   docker compose exec ollama ollama pull llama3.2:3b
+  ollama:
+    image: ollama/ollama:latest
+    container_name: clipwright-ollama
+    profiles: ["ollama"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      # Persistent model store: pulling once is enough across restarts.
+      - ${CLIPWRIGHT_DATA_DIR:-./data}/ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # Redis for caching and job queues (useful for video processing)
   redis:
     image: redis:7-alpine
-    container_name: supoclip-redis
+    container_name: clipwright-redis
     ports:
       - "127.0.0.1:6379:6379"
     environment:
@@ -528,7 +582,7 @@ services:
   # PostgreSQL database for storing video metadata, user data, etc.
   postgres:
     image: postgres:15-alpine
-    container_name: supoclip-postgres
+    container_name: clipwright-postgres
     environment:
       POSTGRES_DB: supoclip
       POSTGRES_USER: supoclip
@@ -544,10 +598,6 @@ services:
       retries: 3
 
 volumes:
-  uploads:
-    driver: local
-  clips:
-    driver: local
   redis_data:
     driver: local
   postgres_data:
@@ -559,4 +609,4 @@ volumes:
 
 networks:
   default:
-    name: supoclip-network
+    name: clipwright-network

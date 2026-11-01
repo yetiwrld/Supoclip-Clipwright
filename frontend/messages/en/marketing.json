@@ -1,30 +1,30 @@
 {
   "metadata": {
-    "title": "SupoClip – Open-Source AI Video Clipper for Shorts",
-    "description": "Turn long videos and Twitch or Kick VODs into captioned YouTube Shorts, TikToks, and Reels with open-source AI clipping, virality scoring, and face-aware 9:16 crops.",
-    "openGraphDescription": "Turn long videos and Twitch or Kick VODs into captioned YouTube Shorts, TikToks, and Reels with open-source AI clipping.",
-    "twitterDescription": "Open-source AI clipping, virality scoring, captions, and face-aware vertical crops.",
+    "title": "ClipWright Studio – Offline AI Video Clipper (Whisper + Ollama)",
+    "description": "Turn long videos into captioned short-form clips entirely on your own machine. Local Whisper transcription, local Ollama analysis, no API keys.",
+    "openGraphDescription": "Offline AI clipping: local Whisper transcription and a local Ollama model, with face-aware vertical crops and word-synced captions.",
+    "twitterDescription": "Local-first AI clipping: Whisper + Ollama on your machine, virality scoring, captions, and face-aware vertical crops.",
     "keywords": {
-      "clipper": "AI video clipper",
-      "openSource": "open-source video clipper",
+      "clipper": "offline AI video clipper",
+      "openSource": "local AI video clipper",
       "shorts": "YouTube Shorts clipper",
       "longToShorts": "long video to shorts",
-      "maker": "AI clip maker"
+      "maker": "local clip maker"
     },
     "structured": {
-      "software": "An open-source AI video clipper for finding highlights, creating vertical crops, adding word-synced captions, and exporting short-form videos.",
-      "featureDiscovery": "AI-assisted clip discovery and virality scoring",
+      "software": "A local-first AI video clipper: local Whisper transcription, a local Ollama model for highlight selection, face-aware vertical crops, word-synced captions and FFmpeg export.",
+      "featureDiscovery": "Local AI clip discovery with Ollama",
       "featureCrop": "Face-aware 9:16 vertical cropping",
       "featureCaptions": "Word-synced animated captions",
       "featureExports": "YouTube Shorts, TikTok, and Instagram Reels exports",
-      "featureSelfHost": "Open-source self-hosting",
-      "offerCategory": "Self-hosted open-source edition",
-      "ios": "The SupoClip iOS app: clip long videos into captioned vertical shorts from your iPhone.",
-      "website": "Open-source AI video clipping for short-form content."
+      "featureSelfHost": "Fully offline local processing",
+      "offerCategory": "Free and open source",
+      "ios": "The ClipWright Studio iOS app: clip long videos into captioned vertical shorts from your iPhone.",
+      "website": "Offline AI video clipping for short-form content."
     }
   },
   "footer": {
-    "tagline": "Open-source AI video clipper. Use the hosted app or run it on your own infrastructure.",
+    "tagline": "Offline AI video clipper. Whisper and Ollama run on your machine; your footage never leaves it.",
     "github": "GitHub",
     "ios": "iOS App",
     "columns": {
@@ -44,27 +44,27 @@
   "related": {
     "continueExploring": "Continue exploring",
     "keepReading": "Keep reading",
-    "relatedGuides": "Related SupoClip guides",
+    "relatedGuides": "Related ClipWright Studio guides",
     "read": "Read"
   },
   "links": {
     "blog_tiktok_publishing_is_live": {
       "eyebrow": "Product update",
-      "title": "TikTok publishing is now live in SupoClip",
+      "title": "TikTok publishing is now live in ClipWright Studio",
       "label": "TikTok publishing",
       "description": "Connect TikTok, publish to TikTok and YouTube together on the web, and schedule ahead on Creator."
     },
     "demo": {
       "label": "Demo",
       "eyebrow": "Demo",
-      "title": "See real clips SupoClip made from a long video",
+      "title": "See real clips ClipWright Studio made from a long video",
       "description": "Watch the output, then jump to each moment in the original source video."
     },
     "ai_video_clipper": {
       "label": "AI video clipper",
       "eyebrow": "AI video clipping",
       "title": "AI video clipper for Shorts, Reels, and TikTok",
-      "description": "How SupoClip finds moments, scores candidates, reframes faces, and adds captions."
+      "description": "How ClipWright Studio finds moments, scores candidates, reframes faces, and adds captions."
     },
     "youtube_shorts_clipper": {
       "label": "YouTube Shorts clipper",
@@ -81,13 +81,13 @@
     "blog_self_host_supoclip_docker": {
       "label": "Self-hosting guide",
       "eyebrow": "Self-hosting guide",
-      "title": "Self-host SupoClip with Docker Compose",
+      "title": "Self-host ClipWright Studio with Docker Compose",
       "description": "Requirements, environment variables, first boot, a fully local setup, and production checks."
     },
     "blog_supoclip_vs_opusclip": {
-      "label": "SupoClip vs OpusClip",
+      "label": "ClipWright Studio vs OpusClip",
       "eyebrow": "Comparison",
-      "title": "SupoClip vs OpusClip: a sourced comparison",
+      "title": "ClipWright Studio vs OpusClip: a sourced comparison",
       "description": "Pricing model, deployment, watermarks, and workflow, with every claim linked to a source."
     },
     "blog_best_free_opusclip_alternative": {
@@ -97,9 +97,9 @@
       "description": "Understand the compute, provider costs, and maintenance behind a self-hosted workflow."
     },
     "blog_supoclip_vs_supo_live": {
-      "label": "SupoClip vs supo.live",
+      "label": "ClipWright Studio vs supo.live",
       "eyebrow": "Comparison",
-      "title": "SupoClip vs supo.live: open-source control",
+      "title": "ClipWright Studio vs supo.live: open-source control",
       "description": "Compare self-hosting, AI clipping, and editing workflows before choosing a video tool."
     },
     "sign_up": {
@@ -164,7 +164,7 @@
     },
     "blog_open_source_video_clippers": {
       "eyebrow": "Open-source comparison",
-      "title": "Compare SupoClip, Clips AI, and Auto-Editor",
+      "title": "Compare ClipWright Studio, Clips AI, and Auto-Editor",
       "label": "Open-source video clippers",
       "description": "Choose an app, Python library, or command-line tool for the editing job you need."
     }
@@ -185,16 +185,16 @@
     "publishing": "Publishing"
   },
   "hero": {
-    "badge": "Open source and self-hostable. Also on iPhone.",
+    "badge": "Runs fully offline on your own machine. No API keys.",
     "titleLine1": "One long video.",
     "titleLine2": "A week of shorts.",
-    "body": "SupoClip finds the moments worth posting in your videos, VODs, and uploads, reframes them to 9:16 with word-synced captions, and schedules them to YouTube Shorts.",
+    "body": "Point ClipWright Studio at a long video. Local Whisper writes the transcript, a local Ollama model picks the moments worth posting, and the editor reframes them to 9:16 with word-synced captions.",
     "startClipping": "Start clipping",
-    "useHosted": "Use Hosted App",
+    "useHosted": "Open the studio",
     "viewSource": "View Source",
-    "appStoreAria": "Download SupoClip on the App Store",
+    "appStoreAria": "Download ClipWright Studio on the App Store",
     "appStoreAlt": "Download on the App Store",
-    "productHuntAlt": "SupoClip - Open-source AI clipper: long videos into viral shorts | Product Hunt",
+    "productHuntAlt": "ClipWright Studio - Open-source AI clipper: long videos into viral shorts | Product Hunt",
     "sources": {
       "upload": "Your own files",
       "label": "Clip from"
@@ -210,8 +210,8 @@
       "scheduled": "Scheduled",
       "steps": {
         "source": "Your long video",
-        "clip": "The clip SupoClip found",
-        "post": "Scheduled to YouTube"
+        "clip": "The clip ClipWright Studio found",
+        "post": "Rendered on your machine"
       },
       "longForm": "Long video",
       "captions": "Word-synced captions",
@@ -228,11 +228,11 @@
       },
       "gold": {
         "title": "AI finds the moments",
-        "description": "Word-level transcription and virality scoring surface the stretches that stand on their own."
+        "description": "Local Whisper transcription and a local model score every stretch that stands on its own."
       },
       "export": {
         "title": "Post or schedule",
-        "description": "Tweak anything in the editor, then download, publish now, or schedule to YouTube Shorts."
+        "description": "Tweak anything in the editor, then render to your disk. Publishing is optional."
       }
     }
   },
@@ -251,7 +251,7 @@
   },
   "features": {
     "title": "An editor's eye, on autopilot",
-    "body": "Everything between the raw recording and a clip worth posting is handled for you, and still yours to tweak.",
+    "body": "Everything between the raw recording and a clip worth posting is handled on your machine, and still yours to tweak.",
     "eyebrow": "Features",
     "captionSample": "Captions that land on every single word",
     "ownFonts": "Your fonts",
@@ -297,7 +297,7 @@
   "editor": {
     "eyebrow": "Editor",
     "title": "A whole editor, built in",
-    "body": "Every clip opens in a studio made for short-form. Cut, fix a word, restyle captions, reframe, and export without leaving SupoClip.",
+    "body": "Every clip opens in a studio made for short-form. Cut, fix a word, restyle captions, reframe, and export — all on your own machine.",
     "tryIt": "This preview works. Click the tabs, switch the framing, drag the sliders.",
     "points": {
       "timeline": {
@@ -337,7 +337,7 @@
   "publish": {
     "eyebrow": "New: publishing",
     "title": "Clip it once. Post it all week.",
-    "body": "Connect your YouTube channel and every clip can go out on its own schedule. Pick a time, review the AI-drafted title, and SupoClip posts it for you.",
+    "body": "Publishing to YouTube, TikTok or Instagram is optional and needs the internet. Clipping, editing, captioning and rendering never do.",
     "platforms": {
       "youtube": "YouTube Shorts",
       "tiktok": "TikTok",
@@ -358,10 +358,10 @@
       },
       "learn": {
         "title": "Learns what your audience watches",
-        "description": "Views flow back into SupoClip, so future picks lean toward what performs on your channel."
+        "description": "Views come back only for accounts you connect, and are never required to clip."
       }
     },
-    "plan": "Scheduling is included in Creator. Publishing right away works on Pro.",
+    "plan": "Social publishing is optional. Everything before it runs offline.",
     "calendar": {
       "week": "This week",
       "published": "Published",
@@ -422,63 +422,63 @@
   "faq": {
     "eyebrow": "FAQ",
     "title": "Questions, answered",
-    "body": "The short version of what people ask before they start clipping.",
+    "body": "The short version of what people ask before they start clipping offline.",
     "items": {
       "sources": {
         "question": "What videos can I clip?",
-        "answer": "YouTube videos, Twitch and Kick VODs or clips, and files you upload yourself. Paste a link or drag in a recording, and SupoClip takes it from there."
+        "answer": "Files on your computer (MP4, MOV, MKV, WebM, MP3, WAV) always work offline. Pasting a YouTube, Twitch or Kick link also works, but downloading it needs the internet."
       },
       "selection": {
-        "question": "How does SupoClip choose the clips?",
-        "answer": "It transcribes the video word by word, then an AI model reads the whole transcript and picks moments that stand on their own. Each one is scored for hook, engagement, value, and shareability, and you can trim, split, or merge any clip afterwards."
+        "question": "How does ClipWright Studio choose the clips?",
+        "answer": "It transcribes the audio word by word with a local Whisper model, then a local Ollama model reads the whole transcript and picks moments that stand on their own. Each one is scored for hook, engagement, value, and shareability, and you can trim, split, or merge any clip afterwards."
       },
       "minutes": {
-        "question": "How are minutes counted?",
-        "answer": "Plans are measured in minutes of source video, not in clips. Pro includes {proHours} hours a month and Creator {creatorHours} hours. A 30-minute video uses 30 minutes, however many clips come out of it. Allowances reset every month, on yearly plans too."
+        "question": "Is there a usage limit?",
+        "answer": "No. ClipWright Studio runs on your hardware, so there are no minute allowances or plans. Very long sources are limited only by your disk space and patience for CPU rendering."
       },
       "publishing": {
-        "question": "Can SupoClip post to TikTok and Instagram?",
-        "answer": "Today you can publish straight to YouTube Shorts: right away on Pro, or on a schedule with Creator. TikTok and Instagram are coming soon. Until then, download clips with the TikTok and Reels export presets and upload them yourself."
+        "question": "Can ClipWright Studio post to TikTok and Instagram?",
+        "answer": "Not offline. Clipping, editing, captioning and rendering work with no connection at all; connecting a social account and uploading a post needs the internet and is opt-in."
       },
       "watermark": {
         "question": "Do clips have a watermark?",
-        "answer": "No. SupoClip never adds a watermark, on hosted plans or when you self-host."
+        "answer": "No. ClipWright Studio never adds a watermark."
       },
       "languages": {
         "question": "Does it work in other languages?",
-        "answer": "Yes. The spoken language is detected automatically, so transcripts, captions, and clip picks follow the language of the video."
+        "answer": "Yes. Whisper detects the spoken language automatically, so transcripts, captions, and clip picks follow the language of the video."
       },
       "selfHost": {
-        "question": "Is it really free to self-host?",
-        "answer": "Yes. SupoClip is open source under AGPL-3.0 and runs with Docker Compose on your own machine. You only pay for the transcription and AI providers you choose, if any."
+        "question": "Does it need a GPU or an API key?",
+        "answer": "No. It runs on CPU with local Whisper and Ollama, and no AI API key is required. Hosted AI providers stay available but disabled unless you turn them on."
       },
       "cancel": {
-        "question": "Can I cancel anytime?",
-        "answer": "Yes. Change or cancel your plan from settings whenever you like. If you subscribed in the iPhone app, manage it through the App Store."
+        "question": "Can I use it without an account?",
+        "answer": "The app is yours: it runs locally with its own database. Accounts exist only to keep projects separate on a shared machine."
       }
     }
   },
   "openSource": {
     "badge": "AGPL-3.0 licensed",
     "title": "Built in the open",
-    "body": "Fully open source. Self-host on your infrastructure, contribute features, or fork it and make it yours.",
+    "body": "Fully open source under AGPL-3.0. Run it locally, contribute features, or fork it and make it yours.",
     "commandLabel": "self-host",
-    "comment": "# add a transcription + LLM provider to .env",
+    "comment": "# one-time local model download (Whisper + Ollama)",
     "facts": {
       "license": "AGPL-3.0, with every line on GitHub",
       "docker": "One Docker Compose command to run it yourself",
-      "models": "Bring your own models: Gemini, OpenAI, Anthropic, or Ollama"
+      "models": "Local Whisper + Ollama by default; hosted models are opt-in"
     },
-    "ready": "SupoClip is running on localhost:3107"
+    "ready": "ClipWright Studio is running on localhost:3107"
   },
   "guides": {
     "eyebrow": "Guides and comparisons",
     "title": "Learn the complete clipping workflow",
-    "body": "Practical, source-backed pages for choosing a video clipper, self-hosting SupoClip, and turning long recordings into short-form content.",
+    "body": "Practical, source-backed pages for choosing a video clipper, self-hosting ClipWright Studio, and turning long recordings into short-form content.",
     "read": "Read guide"
   },
   "cta": {
     "title": "Your next video is already a week of content.",
-    "body": "Paste a link and see what SupoClip finds. Use the hosted app, or self-host the open-source version for free."
+    "body": "Open the studio and drop in a file. Everything after that — transcript, clip picks, captions, export — happens on your machine."
   }
 }

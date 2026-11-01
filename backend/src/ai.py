@@ -450,13 +450,23 @@ def _split_llm_name(model_name: str) -> tuple[str, str | None]:
 
 
 def _get_missing_llm_key_error(model_name: str, runtime_config: Config) -> Optional[str]:
-    """Return a clear configuration error when the selected LLM key is missing."""
+    """Return a clear configuration error when the selected LLM is unusable."""
     provider, provider_model_name = _split_llm_name(model_name)
 
     if provider not in SUPPORTED_LLM_PROVIDERS:
         return (
             f"Unsupported LLM provider '{provider}'. "
-            "Use google-gla:*, openai:*, openrouter:*, anthropic:*, or ollama:*."
+            "Use ollama:* for local analysis, or google-gla:*, openai:*, "
+            "openrouter:*, anthropic:* only after enabling hosted AI."
+        )
+
+    if provider != "ollama" and not getattr(runtime_config, "hosted_ai_enabled", False):
+        # Offline-first: a hosted provider is never contacted unless the
+        # operator explicitly turned offline mode off and allowed hosted AI.
+        return (
+            f"LLM provider '{provider}' is a hosted AI service, and ClipWright Studio runs "
+            "offline. Set LLM=ollama:llama3.2:3b to analyse transcripts locally, or set "
+            "OFFLINE_MODE=false and ALLOW_HOSTED_AI=true to opt in to hosted AI."
         )
 
     if not provider_model_name:
@@ -490,11 +500,24 @@ def _get_missing_llm_key_error(model_name: str, runtime_config: Config) -> Optio
         )
 
     if provider == "ollama":
-        # Ollama can run locally without an API key. OLLAMA_BASE_URL/OLLAMA_API_KEY
+        # Ollama runs locally without an API key. OLLAMA_BASE_URL/OLLAMA_API_KEY
         # are optional and passed through as environment variables.
         return None
 
     return None
+
+
+def _ensure_local_llm_ready(runtime_config: Config) -> None:
+    """Fail fast with instructions when the local Ollama model is missing."""
+    provider, _ = _split_llm_name(runtime_config.llm)
+    if provider != "ollama":
+        return
+    from .local_ai import ensure_ollama_ready
+
+    try:
+        ensure_ollama_ready(runtime_config)
+    except Exception as error:  # LocalModelUnavailable
+        raise RuntimeError(str(error)) from None
 
 
 def _uses_native_output(model_name: str) -> bool:
@@ -580,6 +603,7 @@ def get_transcript_agent(clip_length: str = "auto") -> Agent[None, TranscriptAna
         config_error = _get_missing_llm_key_error(runtime_config.llm, runtime_config)
         if config_error:
             raise RuntimeError(config_error)
+        _ensure_local_llm_ready(runtime_config)
 
         _transcript_agent = Agent[None, TranscriptAnalysis](
             model=_build_transcript_model(runtime_config),

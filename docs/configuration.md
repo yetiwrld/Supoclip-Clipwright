@@ -29,7 +29,7 @@ preflight. An actor result found there is stored with the task and reused by the
 so each actor runs at most once per task, and a chain that has failed completely is not
 rerun for the same job.
 
-This guide explains the important environment variables used by SupoClip and how they affect behavior.
+This guide explains the important environment variables used by ClipWright Studio and how they affect behavior.
 
 Most settings are sourced from `.env.example`, `docker-compose.yml`, and the backend configuration code in `backend/src/config.py`.
 
@@ -48,17 +48,31 @@ In most cases, edit `.env` and then rebuild or restart the stack.
 
 ## Required Settings
 
+Nothing is required. The defaults run entirely on local models; see
+[local-ai.md](local-ai.md).
+
 ### Transcription
 
-| Variable | Required | Purpose |
+| Variable | Default | Purpose |
 |---|---|---|
-| `ASSEMBLY_AI_API_KEY` | Yes | Enables word-level transcription used for clip extraction and subtitles |
+| `TRANSCRIPTION_PROVIDER` | `whisper` | `whisper` (local), `youtube_captions`, or `assemblyai` (hosted, needs `OFFLINE_MODE=false`) |
+| `WHISPER_MODEL_SIZE` | `small` | `tiny`/`base`/`small`/`medium`/`large-v3`/`large-v3-turbo` (+`.en`). Each size maps to its own `.pt` checkpoint |
+| `WHISPER_MODEL_DIR` | `./data/models/whisper` (`/models/whisper` in containers) | Where checkpoints live. Never downloaded during a job |
+| `WHISPER_DEVICE` | `cpu` | `cpu` everywhere on the reference hardware; `cuda` only if you have one |
+| `ASSEMBLY_AI_API_KEY` | unset | Hosted transcription only; ignored while `OFFLINE_MODE=true` |
 
 ### LLM selection
 
-| Variable | Required | Purpose |
+| Variable | Default | Purpose |
 |---|---|---|
-| `LLM` | Yes | Selects the provider and model, for example `google-gla:gemini-3-flash-preview` |
+| `LLM` | `ollama:llama3.2:3b` | Provider and model, e.g. `ollama:qwen2.5:7b` or (hosted) `google-gla:gemini-3-flash-preview` |
+| `AI_EDIT_MODEL` | `ollama:llama3.2:3b` | Model used for AI-assisted editing |
+| `OFFLINE_MODE` | `true` | Blocks all hosted AI calls and is enforced before any request. Overridable at runtime from Settings (below) |
+| `CLIPWRIGHT_CONFIG_DIR` | `./data/config` (`/config` in Docker) | Where `offline-mode.json` — the persisted runtime switch — lives |
+| `CLIPWRIGHT_DATA_DIR` | `./data` | Root for uploads, clips, models and config on the host; Compose bind mounts it |
+| `ALLOW_HOSTED_AI` | `false` | Second gate for hosted providers: both this and `OFFLINE_MODE=false` are needed |
+| `OLLAMA_BASE_URL` | auto: `http://localhost:11434/v1`, or `http://host.docker.internal:11434/v1` inside Docker | Ollama endpoint. Must stay local unless you knowingly use a remote server |
+| — | built-in timeouts | Analysis 600 s per window, 1800 s total, rerank 240 s, AI editing 120 s, status probe 2.5 s (`backend/src/ai.py`, `services/ai_edit_service.py`, `local_ai.py`). They fail with a typed error instead of hanging a worker |
 | `OPENAI_API_KEY` | If using OpenAI | Required for `openai:*` models |
 | `GOOGLE_API_KEY` | If using Google | Required for `google-gla:*` models |
 | `ANTHROPIC_API_KEY` | If using Anthropic | Required for `anthropic:*` models |
@@ -66,7 +80,10 @@ In most cases, edit `.env` and then rebuild or restart the stack.
 | `OLLAMA_BASE_URL` | If using Ollama remotely | Base URL for Ollama-compatible endpoints |
 | `OLLAMA_API_KEY` | Optional | Used for hosted Ollama providers such as Ollama Cloud |
 
-The backend can infer a default LLM from whichever API key is present, but setting `LLM` explicitly is safer and easier to debug.
+The backend can infer a default LLM from whichever API key is present, but
+setting `LLM` explicitly is safer and easier to debug. With `OFFLINE_MODE=true`
+only `ollama:*` is accepted: a hosted model name fails fast with an explanation
+instead of phoning home.
 
 ## Core Application Settings
 
@@ -85,12 +102,12 @@ The backend can infer a default LLM from whichever API key is present, but setti
 
 ## Analytics Settings
 
-SupoClip can send pageviews and custom product events to DataFast from the `frontend` app.
+ClipWright Studio can send pageviews and custom product events to DataFast from the `frontend` app.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_DATAFAST_WEBSITE_ID` | unset | Public DataFast website ID used by the tracking script |
-| `NEXT_PUBLIC_DATAFAST_DOMAIN` | unset | Root domain tracked by DataFast, for example `supoclip.com` |
+| `NEXT_PUBLIC_DATAFAST_DOMAIN` | unset | Root domain tracked by DataFast, for example `clipwright.example` |
 | `NEXT_PUBLIC_DATAFAST_ALLOW_LOCALHOST` | `false` | Enables local tracking on `localhost` when explicitly set to `true` |
 
 ### DataFast behavior
@@ -134,7 +151,7 @@ These settings affect clip generation speed, throughput, and defaults.
 | `FAST_MODE_MAX_CLIPS` | `10` | Clip cap used by fast mode (never above `MAX_CLIPS`) |
 | `FAST_MODE_TRANSCRIPT_MODEL` | `universal-3-5-pro` | Fast mode uses the Pro model too; `universal-2` covers languages Pro doesn't. `nano`/`universal-2` select the cheaper model for self-hosting |
 | `ASSEMBLY_AI_REQUEST_TIMEOUT_SECONDS` | `60` | Per-request upload/submit timeout (5–300). Transient upload failures retry up to 3 times; the paid submission is attempted once |
-| `WHISPER_MODEL_SIZE` | `medium` in `.env.example` | Whisper model size when Whisper is used locally |
+| `WHISPER_MODEL_SIZE` | `small` in `.env.example` | Whisper model size when Whisper is used locally |
 | `QUEUED_TASK_TIMEOUT_SECONDS` | `180` | Marks stale queued tasks as failed instead of leaving them stuck forever |
 | `MAX_VIDEO_DURATION` | `5400` | Maximum accepted upload length and baseline YouTube length in seconds |
 | `MAX_VIDEO_UPLOAD_BYTES` | `4000000000` | Maximum uploaded file size, in bytes (4 GB). Checked in the browser before the upload starts, and again by the API and presigned upload session so it cannot be bypassed. Set `NEXT_PUBLIC_MAX_VIDEO_UPLOAD_BYTES` to the same value so the pre-upload check matches before the billing summary loads. Sources above 1080p or 60 fps are scaled down to that ceiling before transcription and rendering; plans with a lower output resolution still receive that lower resolution |
@@ -225,7 +242,7 @@ Required when `SELF_HOST=false` and you want subscription management:
 | `AWS_REGION` | AWS region for Amazon SES, default `us-east-1` |
 | `AWS_ACCESS_KEY_ID` | AWS access key ID used to send hosted billing lifecycle emails |
 | `AWS_SECRET_ACCESS_KEY` | AWS secret access key used to send hosted billing lifecycle emails |
-| `SES_FROM_EMAIL` | Verified sender address for subscription emails, default `SupoClip <onboarding@example.com>` |
+| `SES_FROM_EMAIL` | Verified sender address for subscription emails, default `ClipWright Studio <onboarding@example.com>` |
 
 #### Scheduled cancellation emails
 
@@ -235,8 +252,8 @@ The frontend Stripe webhook at `/api/billing/webhook` handles
 authenticated backend `/billing/subscription-email` endpoint with
 `{"event":"cancellation_scheduled"}`. The backend sends the customer an immediate
 email with their access end date, a request for feedback, and an invitation to
-reply to `support@supoclip.com` for 30% off for three months. The sender uses
-`SES_FROM_EMAIL`; the signature is Team SupoClip.
+reply to `support@clipwright.example` for 30% off for three months. The sender uses
+`SES_FROM_EMAIL`; the signature is Team ClipWright Studio.
 
 The discount message uses the existing [product-email preferences and unsubscribe
 links](product-update-emails.md). Opted-out customers receive a cancellation
@@ -272,7 +289,7 @@ must check previous use before applying it.
 Social publishing is optional. When no provider is configured the Publish
 button and the Social Accounts page explain what is missing instead of failing.
 
-SupoClip uses one OAuth app per platform, registered by whoever operates the
+ClipWright Studio uses one OAuth app per platform, registered by whoever operates the
 server. Users connect their own YouTube, TikTok and Instagram accounts through
 that app from **Settings → Social Accounts**; tokens are stored encrypted with
 `APP_SETTINGS_ENCRYPTION_KEY` (falling back to `BACKEND_AUTH_SECRET`).
@@ -347,7 +364,7 @@ Before enabling each provider for users:
 - Connect a test account, disconnect it, and reconnect it. Confirm token refresh
   works and revoked credentials prompt a reconnect.
 - Publish one clip using a visibility level allowed for the test account. Check
-  the result on the platform as well as in SupoClip.
+  the result on the platform as well as in ClipWright Studio.
 - Schedule a clip, confirm it publishes once, and cancel another scheduled clip.
 - For TikTok, verify asynchronous processing and private completion with no
   public post ID. Status-check failures should keep checking the existing upload;
@@ -381,13 +398,13 @@ With a proxy set, a job downloads modest audio first, picks clips, then fetches 
 
 ## Apify YouTube Downloader
 
-SupoClip uses the actor explicitly configured in the private environment as the primary YouTube download path. Metadata preflight and fallback downloads rely on the local `yt-dlp` stack over a direct connection. When `YOUTUBE_PROXY_URL` is set, the proxy attempt runs before Apify.
+ClipWright Studio uses the actor explicitly configured in the private environment as the primary YouTube download path. Metadata preflight and fallback downloads rely on the local `yt-dlp` stack over a direct connection. When `YOUTUBE_PROXY_URL` is set, the proxy attempt runs before Apify.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `APIFY_API_TOKEN` | empty | Enables the primary Apify download flow |
 | `APIFY_YOUTUBE_DEFAULT_QUALITY` | `1080` | Requested Apify download resolution (`360`, `480`, `720`, or `1080`) |
-| `APIFY_RUN_TIMEOUT_SECONDS` | `900` | Maximum Apify actor run time before SupoClip gives up and falls back |
+| `APIFY_RUN_TIMEOUT_SECONDS` | `900` | Maximum Apify actor run time before ClipWright Studio gives up and falls back |
 
 ## RapidAPI YouTube Downloader
 
@@ -467,12 +484,19 @@ docker-compose up -d
 For basic self-hosted use:
 
 ```env
-ASSEMBLY_AI_API_KEY=your_key
-LLM=google-gla:gemini-3-flash-preview
-GOOGLE_API_KEY=your_key
+OFFLINE_MODE=true
+TRANSCRIPTION_PROVIDER=whisper
+WHISPER_MODEL_SIZE=small
+LLM=ollama:llama3.2:3b
+AI_EDIT_MODEL=ollama:llama3.2:3b
 BETTER_AUTH_SECRET=replace_me
 SELF_HOST=true
 ```
+
+Download the models once (`python scripts/setup_local_ai.py --install-whisper`
+and `ollama pull llama3.2:3b`). No hosted key appears in the minimal config. For
+an explicitly-enabled hosted setup instead, add `OFFLINE_MODE=false`,
+`ALLOW_HOSTED_AI=true`, the provider key and `LLM=<provider>:<model>`.
 
 To enable DataFast on a deployed frontend, add:
 
@@ -504,7 +528,7 @@ NEXT_PUBLIC_SCALE_PLAN_MINUTE_LIMIT=1500
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_aws_access_key_id
 AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
-SES_FROM_EMAIL="SupoClip <onboarding@example.com>"
+SES_FROM_EMAIL="ClipWright Studio <onboarding@example.com>"
 ```
 
 ## Related Reading

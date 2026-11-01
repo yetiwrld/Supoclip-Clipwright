@@ -20,9 +20,11 @@ export function getAuthTrustedOrigins(env: AuthOriginEnvironment): string[] {
   const origins = [
     toOrigin(env.NEXT_PUBLIC_APP_URL),
     toOrigin(env.BETTER_AUTH_URL),
-    // Retain the existing origins for compatibility with hosted deployments.
+    // Local development hostnames; the sp.*/supoclip.* origins predate the
+    // ClipWright Studio rebrand and stay trusted so old bookmarks keep working.
     "http://localhost:3107",
     "http://sp.localhost:3107",
+    "http://clipwright.localhost:3107",
     "http://supoclip.localhost:3107",
     ...(env.BETTER_AUTH_TRUSTED_ORIGINS ?? "").split(",").map(toOrigin),
   ];

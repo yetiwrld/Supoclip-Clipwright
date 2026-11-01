@@ -44,7 +44,7 @@
     "statusApproved": "Freigegeben",
     "applied": "{email} · beworben am {date}",
     "followers": "{count} Follower",
-    "video": "SupoClip-Video",
+    "video": "ClipWright Studio-Video",
     "updateFailed": "Bewerbung konnte nicht aktualisiert werden",
     "declineReason": "Grund, geht an die bewerbende Person (optional)",
     "revokeNote": "Interne Notiz (optional)",

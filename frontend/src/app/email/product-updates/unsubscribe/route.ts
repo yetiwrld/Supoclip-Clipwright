@@ -13,7 +13,7 @@ const FORWARDED_HEADERS = [
 ] as const;
 
 function unavailable() {
-  return new Response("We couldn’t update your email preference. Please try again, or contact support@supoclip.com.", {
+  return new Response("We couldn’t update your email preference. Please try again, or contact support@clipwright.example.", {
     status: 503,
     headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" },
   });

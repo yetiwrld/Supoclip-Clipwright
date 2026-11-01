@@ -35,10 +35,10 @@
   "maybeLater": "Vielleicht später",
   "prorated": "Du bestätigst die Änderung bei Stripe und zahlst nur den anteiligen Unterschied.",
   "cancelAnytime": "Jederzeit kündbar · Sicherer Checkout mit Stripe",
-  "appStore": "Dein Abo läuft über den App Store. Den Plan änderst du in der SupoClip-App für iOS.",
+  "appStore": "Dein Abo läuft über den App Store. Den Plan änderst du in der ClipWright Studio-App für iOS.",
   "selfHosted": {
     "title": "Selbst gehostet",
-    "body": "SupoClip läuft auf deinem eigenen Computer, ohne Abo und ohne monatliches Videolimit. Du musst es einrichten und stellst die Hardware und alle kostenpflichtigen KI-Dienste selbst.",
+    "body": "ClipWright Studio läuft auf deinem eigenen Computer, ohne Abo und ohne monatliches Videolimit. Du musst es einrichten und stellst die Hardware und alle kostenpflichtigen KI-Dienste selbst.",
     "guide": "Anleitung zum Selbst-Hosten"
   },
   "upgrade": {

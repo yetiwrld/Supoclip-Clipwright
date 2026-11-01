@@ -1,7 +1,7 @@
 {
   "title": "设置",
   "intro": "新生成内容的默认值、通知和你的方案。",
-  "languageDescription": "SupoClip 使用的语言。",
+  "languageDescription": "ClipWright Studio 使用的语言。",
   "signInRequired": {
     "title": "需要登录",
     "body": "登录后才能查看设置",
@@ -70,7 +70,7 @@
     "socialTitle": "社交账号",
     "socialDescription": "连接 YouTube、TikTok 和 Instagram，发布短片并查看表现",
     "creatorTitle": "创作者计划",
-    "creatorDescription": "制作关于 SupoClip 的视频，免费获得 Pro，并给你的观众一个代码"
+    "creatorDescription": "制作关于 ClipWright Studio 的视频，免费获得 Pro，并给你的观众一个代码"
   },
   "save": {
     "saved": "偏好已保存！",
@@ -85,7 +85,7 @@
   },
   "apiKeys": {
     "title": "智能体与 API",
-    "intro": "让 Claude、Cursor 和其他 AI 智能体通过 <brand>SupoClip MCP 服务器</brand>帮你剪视频，或者在你自己的代码里调用 REST API。密钥和密码一样：它们可以完全访问你的账号。",
+    "intro": "让 Claude、Cursor 和其他 AI 智能体通过 <brand>ClipWright Studio MCP 服务器</brand>帮你剪视频，或者在你自己的代码里调用 REST API。密钥和密码一样：它们可以完全访问你的账号。",
     "docs": {
       "agentTitle": "连接智能体",
       "agentDescription": "在 Claude、Cursor 和其他 MCP 客户端里设置 MCP 服务器。",
@@ -121,7 +121,7 @@
   },
   "creator": {
     "title": "创作者计划",
-    "intro": "在做关于 SupoClip 的视频？领取你的代码：观众可获得<em>前 3 个月 20% 折扣</em>，你则免费获得 SupoClip Pro。",
+    "intro": "在做关于 ClipWright Studio 的视频？领取你的代码：观众可获得<em>前 3 个月 20% 折扣</em>，你则免费获得 ClipWright Studio Pro。",
     "howItWorks": "如何运作",
     "signIn": "创建免费账号或登录，申请加入创作者计划。",
     "createAccount": "创建账号",
@@ -168,13 +168,13 @@
     },
     "profileLabel": "主页链接",
     "profilePlaceholder": "https://www.tiktok.com/@you",
-    "videoLabel": "你做过的一条关于 SupoClip 的视频",
+    "videoLabel": "你做过的一条关于 ClipWright Studio 的视频",
     "optional": "（可选）",
     "videoPlaceholder": "https://",
-    "planLabel": "你打算怎么推广 SupoClip？",
+    "planLabel": "你打算怎么推广 ClipWright Studio？",
     "termsTitle": "计划条款",
     "termSponsored": "赞助内容请标明（例如 #ad）。",
-    "termAds": "不要用 SupoClip 这个名字投放广告，也不要把代码发到优惠券或折扣网站。",
+    "termAds": "不要用 ClipWright Studio 这个名字投放广告，也不要把代码发到优惠券或折扣网站。",
     "termOwn": "不要使用你自己的代码。",
     "termEnd": "我们可以随时结束计划或移除创作者。",
     "agree": "我同意计划条款",

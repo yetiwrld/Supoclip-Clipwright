@@ -44,7 +44,7 @@
     "statusApproved": "Approved",
     "applied": "{email} · applied {date}",
     "followers": "{count} followers",
-    "video": "SupoClip video",
+    "video": "ClipWright Studio video",
     "updateFailed": "Failed to update application",
     "declineReason": "Reason, sent to the applicant (optional)",
     "revokeNote": "Internal note (optional)",

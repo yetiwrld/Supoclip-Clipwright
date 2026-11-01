@@ -8,6 +8,8 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { intlLocale } from "@/i18n/config";
 import { type BlogPost, getSiteUrl, HOSTED_APP_URL } from "@/lib/blog-posts";
 import { OPUSCLIP_COMPARISON_HREF, SELF_HOSTING_GUIDE_HREF } from "@/lib/marketing-links";
+import { BrandLogo } from "@/components/brand-mark";
+import { BRAND_LOGO } from "@/lib/brand";
 
 const repository = "https://github.com/FujiwaraChoki/supoclip";
 const workflowIcons = [Upload, Sparkles, ScanFace, Film];
@@ -40,7 +42,7 @@ export async function SupoLiveArticle({ post }: { post: BlogPost }) {
         datePublished: post.publishedAt,
         dateModified: post.updatedAt,
         author: { "@type": "Organization", name: post.author },
-        publisher: { "@type": "Organization", name: "SupoClip", url: siteUrl, logo: { "@type": "ImageObject", url: `${siteUrl}/logo.png` } },
+        publisher: { "@type": "Organization", name: "ClipWright Studio", url: siteUrl, logo: { "@type": "ImageObject", url: `${siteUrl}${BRAND_LOGO}` } },
         image: post.image ? [`${siteUrl}${post.image.src}`, `${siteUrl}/blog/supoclip-editor.webp`] : undefined,
         articleSection: post.category,
         inLanguage: intlLocale(locale),
@@ -62,7 +64,7 @@ export async function SupoLiveArticle({ post }: { post: BlogPost }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
       <header className="border-b">
         <nav aria-label={t("shell.blogNav")} className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-6 py-5">
-          <Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><Image src="/logo.png" alt="" width={30} height={30} className="rounded-lg dark:invert" />SupoClip</Link>
+          <Link href="/" className="flex items-center gap-2.5 text-xl font-bold"><BrandLogo size={30} className="rounded-lg" />ClipWright Studio</Link>
           <Link href="/blog" className="text-sm underline underline-offset-4">{t("shell.allArticles")}</Link>
         </nav>
       </header>
@@ -122,7 +124,7 @@ export async function SupoLiveArticle({ post }: { post: BlogPost }) {
               <thead className="bg-muted">
                 <tr>
                   <th scope="col" className="p-4">{t(`${slug}.comparison.priority`)}</th>
-                  <th scope="col" className="p-4">SupoClip</th>
+                  <th scope="col" className="p-4">ClipWright Studio</th>
                   <th scope="col" className="p-4">supo.live</th>
                 </tr>
               </thead>
@@ -207,7 +209,7 @@ export async function SupoLiveArticle({ post }: { post: BlogPost }) {
           <h2>{t(`${slug}.start.heading`)}</h2>
           <p>{t(`${slug}.start.p1`)}</p>
           <section className="rounded-2xl border bg-muted/30 p-6 sm:p-8" aria-label={t("shell.startAria")}>
-            <Image src="/logo.png" alt={t(`${slug}.start.logoAlt`)} width={40} height={40} className="mb-4 rounded-lg dark:invert" />
+            <BrandLogo size={40} className="mb-4 rounded-lg" />
             <h3>{t(`${slug}.start.cardTitle`)}</h3>
             <ul className="my-5 space-y-2 text-sm">
               {([0, 1, 2] as const).map((index) => (

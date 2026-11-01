@@ -13,6 +13,10 @@ from src.api.routes.admin import _setting_status
 
 @pytest.fixture
 def router_config(monkeypatch):
+    # Hosted providers are opt-in: these tests cover the hosted code path that
+    # ClipWright Studio keeps behind OFFLINE_MODE=false + ALLOW_HOSTED_AI=true.
+    monkeypatch.setenv("OFFLINE_MODE", "false")
+    monkeypatch.setenv("ALLOW_HOSTED_AI", "true")
     monkeypatch.setenv("LLM", "openrouter:anthropic/claude-sonnet-5.5")
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-router-key")
     monkeypatch.setenv("OPENROUTER_FALLBACK_MODEL", "openai/gpt-6-luna")
@@ -24,7 +28,7 @@ async def test_native_schema_request_and_both_model_responses(router_config, mon
     """Exercise the real SDK request and parsing without paid network calls.
 
     The gateway performs failover; this verifies its ordered request contract
-    and that SupoClip accepts either model's schema-valid response.
+    and that ClipWright Studio accepts either model's schema-valid response.
     """
     captured = []
     analysis = ai.TranscriptAnalysis(

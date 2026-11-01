@@ -1,6 +1,6 @@
 # Troubleshooting
 
-This guide collects the most common operational issues with SupoClip and how to diagnose them.
+This guide collects the most common operational issues with ClipWright Studio and how to diagnose them.
 
 ## Start Here
 
@@ -143,25 +143,32 @@ Tasks begin processing and then move to `error`.
 
 ### Common causes
 
-- Invalid API key
-- LLM/provider mismatch
-- YouTube download issue
-- AssemblyAI failure
+- Ollama not running, or the configured model not pulled
+- Whisper checkpoint missing from `WHISPER_MODEL_DIR`
 - FFmpeg or media-processing dependency issue
 - Rendering failure caused by fonts or clip options
+- (Hosted setups only) invalid API key or provider mismatch
+- A YouTube download, when the source is a link rather than a file
 
 ### Checks
 
 ```bash
-docker-compose logs -f backend
-docker-compose logs -f worker
+docker compose logs -f backend
+docker compose logs -f worker
+python scripts/setup_local_ai.py --check
+curl http://localhost:8000/local-ai/status
 ```
 
 Verify:
 
-- `ASSEMBLY_AI_API_KEY` is set
-- `LLM` matches the provider key you supplied
-- The provider account is active and has quota
+- `ollama list` shows the model named in `LLM` (default `llama3.2:3b`)
+- The Whisper checkpoint exists in `WHISPER_MODEL_DIR` (`ls data/models/whisper`)
+- `TRANSCRIPTION_PROVIDER=whisper` and `OFFLINE_MODE=true` for a local install
+- For hosted setups only: the provider key is set and the account has quota
+
+The worker reports the first failing check as `Local AI is not ready: …`, which
+names the exact command to run. The same information is in **Settings → Offline &
+local AI**.
 
 ### Provider mismatch examples
 

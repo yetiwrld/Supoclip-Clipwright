@@ -7,12 +7,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from supoclip_mcp.client import SupoClipClient, SupoClipError
+from supoclip_mcp.client import ClipWright StudioClient, ClipWright StudioError
 from supoclip_mcp.config import Settings
 
 
 def configured_client():
-    return SupoClipClient(Settings(api_url="https://api.supoclip.test", api_key=None,
+    return ClipWright StudioClient(Settings(api_url="https://api.supoclip.test", api_key=None,
         user_id="owner", auth_secret="test-secret", timeout=30, download_dir="downloads",
         mcp_transport="stdio", mcp_host="127.0.0.1", mcp_port=9100, mcp_mount_path="/mcp",
         mcp_public_url=None, mcp_require_bearer_auth=False))
@@ -51,7 +51,7 @@ def test_failed_storage_response_does_not_overwrite_previous_download(monkeypatc
 
     mock_requests(monkeypatch, handler)
     (tmp_path / "clip.mp4").write_bytes(b"previous download")
-    with pytest.raises(SupoClipError, match="Storage download failed"):
+    with pytest.raises(ClipWright StudioError, match="Storage download failed"):
         asyncio.run(configured_client().download("/tasks/task/clips/clip/file", str(tmp_path), "clip.mp4"))
     assert (tmp_path / "clip.mp4").read_bytes() == b"previous download"
     assert list(tmp_path.glob("*.part")) == []
@@ -59,5 +59,5 @@ def test_failed_storage_response_does_not_overwrite_previous_download(monkeypatc
 
 def test_external_redirect_requires_https(monkeypatch, tmp_path):
     mock_requests(monkeypatch, lambda _: httpx.Response(307, headers={"Location": "http://private-s3.test/video.mp4"}))
-    with pytest.raises(SupoClipError, match="HTTPS"):
+    with pytest.raises(ClipWright StudioError, match="HTTPS"):
         asyncio.run(configured_client().download("/tasks/task/clips/clip/file", str(tmp_path), "clip.mp4"))

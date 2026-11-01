@@ -1,5 +1,5 @@
 """
-SupoClip FastAPI application.
+ClipWright Studio FastAPI application.
 
 This is the new main entry point with:
 - Separated concerns (routes, services, repositories, workers)
@@ -60,7 +60,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         """Application lifespan: startup and shutdown events."""
-        logger.info("🚀 Starting SupoClip API...")
+        logger.info("🚀 Starting ClipWright Studio API...")
         try:
             await init_db()
             logger.info("✅ Database initialized")
@@ -73,14 +73,14 @@ def create_app(
 
             yield
         finally:
-            logger.info("🛑 Shutting down SupoClip API...")
+            logger.info("🛑 Shutting down ClipWright Studio API...")
             await close_db()
             await queue_adapter.close_pool()
             logger.info("✅ Cleanup complete")
 
     app = FastAPI(
-        title="SupoClip API",
-        description="SupoClip backend with async job processing",
+        title="ClipWright Studio API",
+        description="ClipWright Studio local backend with async job processing",
         version="0.2.0",
         lifespan=lifespan,
     )
@@ -199,6 +199,9 @@ def create_app(
     app.include_router(billing_router)
     app.include_router(api_keys_router)
     app.include_router(account_router)
+
+    from .api.routes.local_ai import router as local_ai_router
+    app.include_router(local_ai_router)
     app.include_router(social_router)
     app.include_router(email_preferences_router)
 
@@ -206,7 +209,7 @@ def create_app(
     def read_root():
         """Root endpoint."""
         return {
-            "name": "SupoClip API",
+            "name": "ClipWright Studio API",
             "version": "0.2.0",
             "status": "running",
             "docs": "/docs",

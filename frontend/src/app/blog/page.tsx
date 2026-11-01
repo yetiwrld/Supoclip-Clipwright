@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { applyBlogCopy, HOSTED_APP_URL, blogPosts, getSiteUrl } from "@/lib/blog-posts";
 import { getMarketingLinks } from "@/lib/marketing-links";
+import { BrandLogo } from "@/components/brand-mark";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("blog");
@@ -22,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: t("index.ogDescription"),
       type: "website",
       url,
-      siteName: "SupoClip",
+      siteName: "ClipWright Studio",
     },
   };
 }
@@ -38,12 +39,12 @@ export default async function BlogIndexPage() {
       <header className="border-b bg-background/95">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="SupoClip" width={24} height={24} className="rounded-lg dark:invert" />
+            <BrandLogo size={24} className="rounded-lg" />
             <span
               className="text-lg font-bold tracking-tight"
               style={{ fontFamily: "var(--font-syne), var(--font-geist-sans), system-ui" }}
             >
-              SupoClip
+              ClipWright Studio
             </span>
           </Link>
           <div className="flex items-center gap-2">

@@ -59,11 +59,11 @@ it("shows a selected field when there is nothing on the page to select", async (
     throw new Error("execCommand unsupported");
   });
 
-  await expect(copyText("https://supoclip.com/share/abc", { manualLabel: "Copy by hand" })).resolves.toBe("manual");
+  await expect(copyText("https://clipwright.example/share/abc", { manualLabel: "Copy by hand" })).resolves.toBe("manual");
 
   const field = document.getElementById("supoclip-manual-copy");
   expect(field).toBeInstanceOf(HTMLTextAreaElement);
-  expect(field).toHaveValue("https://supoclip.com/share/abc");
+  expect(field).toHaveValue("https://clipwright.example/share/abc");
   expect(field).toHaveAttribute("aria-label", "Copy by hand");
   expect(document.activeElement).toBe(field);
 });

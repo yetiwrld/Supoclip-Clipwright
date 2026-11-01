@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# SupoClip - Quick Start Script
-# This script helps you start SupoClip with a single command
+# ClipWright Studio - Quick Start Script
+# Starts the local stack. No AI API keys are required: transcription uses a
+# local Whisper model and analysis uses a local Ollama model.
 
 set -e  # Exit on error
 
@@ -12,7 +13,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo "============================================"
-echo "  SupoClip - AI Video Clipping Tool"
+echo "  ClipWright Studio - AI Video Clipping Tool"
 echo "============================================"
 echo ""
 
@@ -20,13 +21,11 @@ echo ""
 if [ ! -f .env ]; then
     echo -e "${RED}Error: .env file not found!${NC}"
     echo ""
-    echo "Please create a .env file with your API keys:"
-    echo "  1. Copy the template: cp .env.example .env"
-    echo "  2. Or use the provided .env file"
-    echo "  3. Edit .env and add your API keys:"
-    echo "     - ASSEMBLY_AI_API_KEY (required)"
-    echo "     - OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, or OPENROUTER_API_KEY"
-    echo "     - OR set LLM=ollama:<model> (optional: OLLAMA_BASE_URL, OLLAMA_API_KEY)"
+    echo "Create one from the template:"
+    echo "  1. cp .env.example .env"
+    echo "  2. python scripts/setup_local_ai.py --install-whisper --write-env"
+    echo ""
+    echo "No AI API key is needed: Whisper and Ollama run locally."
     echo ""
     exit 1
 fi
@@ -49,9 +48,31 @@ if [ -n "${LLM:-}" ]; then
     esac
 fi
 
-if [ -z "$ASSEMBLY_AI_API_KEY" ]; then
-    echo -e "${YELLOW}Warning: ASSEMBLY_AI_API_KEY is not set in .env${NC}"
-    echo "Video transcription will not work without this key."
+if [ "${TRANSCRIPTION_PROVIDER:-whisper}" != "whisper" ]; then
+    echo -e "${YELLOW}Warning: TRANSCRIPTION_PROVIDER=${TRANSCRIPTION_PROVIDER}${NC}"
+    echo "Offline mode expects TRANSCRIPTION_PROVIDER=whisper."
+    echo ""
+fi
+
+if [ -n "${WHISPER_MODEL_DIR:-}" ] && [ -d "${WHISPER_MODEL_DIR}" ]; then
+    echo "Whisper models: ${WHISPER_MODEL_DIR}"
+else
+    echo -e "${YELLOW}Warning: the local Whisper model is not installed yet.${NC}"
+    echo "Run: python scripts/setup_local_ai.py --install-whisper"
+    echo ""
+fi
+
+if command -v ollama > /dev/null 2>&1; then
+    if ollama list > /dev/null 2>&1; then
+        echo "Ollama: running"
+    else
+        echo -e "${YELLOW}Warning: Ollama is installed but not running.${NC}"
+        echo "Start it (or run 'ollama serve'), then 'ollama pull llama3.2:3b'."
+        echo ""
+    fi
+else
+    echo -e "${YELLOW}Warning: Ollama is not installed.${NC}"
+    echo "Install it from https://ollama.com/download, then 'ollama pull llama3.2:3b'."
     echo ""
 fi
 
@@ -60,21 +81,19 @@ if [ "${LLM:-}" = "ollama:" ]; then
     echo "Use a value like LLM=ollama:gpt-oss:20b"
     echo ""
 elif [[ "${LLM:-}" == ollama:* ]] && [ -z "${OLLAMA_BASE_URL:-}" ]; then
-    echo "Ollama base URL is not set; SupoClip will use its local/Docker default."
+    echo "Ollama base URL is not set; ClipWright Studio will use its local/Docker default."
     echo ""
 fi
 
-if [ -z "${OPENAI_API_KEY:-}" ] && \
-   [ -z "${GOOGLE_API_KEY:-}" ] && \
-   [ -z "${ANTHROPIC_API_KEY:-}" ] && \
-   [ -z "${OPENROUTER_API_KEY:-}" ]; then
-    if [[ "${LLM:-}" == ollama:* ]]; then
-        :
-    else
-    echo -e "${YELLOW}Warning: No AI provider API key is set in .env${NC}"
-    echo "You need at least one of: OPENAI_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or LLM=ollama:<model>"
-    echo ""
+# Hosted providers are optional and off by default; only warn if the operator
+# asked for one without a key.
+if [[ "${LLM:-}" != ollama:* ]]; then
+    echo -e "${YELLOW}Warning: LLM='${LLM:-}' is a hosted provider.${NC}"
+    echo "ClipWright Studio runs offline with LLM=ollama:llama3.2:3b."
+    if [ "${OFFLINE_MODE:-true}" = "true" ]; then
+        echo "OFFLINE_MODE=true blocks this provider; the app will report a setup error instead of calling it."
     fi
+    echo ""
 fi
 
 # Check if Docker is running
@@ -100,7 +119,7 @@ else
     DOCKER_COMPOSE="docker-compose"
 fi
 
-echo -e "${GREEN}Starting SupoClip...${NC}"
+echo -e "${GREEN}Starting ClipWright Studio...${NC}"
 echo ""
 
 # Build and start containers
@@ -111,7 +130,7 @@ echo ""
 $DOCKER_COMPOSE up -d --build
 
 echo ""
-echo -e "${GREEN}SupoClip is starting up!${NC}"
+echo -e "${GREEN}ClipWright Studio is starting up!${NC}"
 echo ""
 echo "Services will be available at:"
 echo "  - Frontend:  $FRONTEND_LOCAL_URL"

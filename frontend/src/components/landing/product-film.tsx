@@ -8,7 +8,6 @@ import {
   ExternalLink, Film, Flame, Link2, Loader2, LogOut, MessageSquare, Paintbrush, Paperclip, Pause, Play, Plus, RefreshCw,
   Scissors, Search, Send, Settings, Settings2, Share2, Sparkles, Star, Trash2, TrendingUp, Wand2, X,
 } from "lucide-react";
-import Image from "next/image";
 
 import { ClipCover, ScoreRing } from "@/components/app/clip-cover";
 import { ProcessingPanel, ProcessingSlots } from "@/components/app/clip-wall";
@@ -24,6 +23,7 @@ import { VideoSourceIcon } from "@/components/video-source-icon";
 import { DEMO_CLIPS, DEMO_SOURCE } from "@/lib/demo";
 import { formatClipDuration } from "@/lib/generations";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand-mark";
 
 /*
  * A scripted walkthrough of the real app, rendered at the app's own size
@@ -142,8 +142,8 @@ function Sidebar({ active }: { active: "create" | "library" }) {
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3">
       <div className="flex h-14 items-center gap-2 px-2 font-display text-lg font-bold tracking-tight">
-        <Image src="/logo.png" alt="" width={24} height={24} className="size-6 dark:invert" />
-        SupoClip
+        <BrandLogo size={24} />
+        ClipWright Studio
       </div>
       <div className="mb-4 mt-1 flex h-9 w-full items-center gap-2.5 rounded-lg bg-foreground px-2.5 text-sm font-medium text-background">
         <Plus className="size-4" />

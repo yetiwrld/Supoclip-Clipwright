@@ -174,35 +174,74 @@ def _assemblyai_speech_models_value(speech_model: str) -> List[str]:
     return ["universal-3-5-pro", "universal-2"]
 
 
-def _get_whisper_model(model_name: str = "base"):
-    """Load and cache a Whisper model by name."""
+def _get_whisper_model(model_name: Optional[str] = None, runtime_config=None):
+    """Load and cache a local Whisper model from the persistent model directory.
+
+    The checkpoint is loaded from ``WHISPER_MODEL_DIR`` (inside the mounted
+    models volume when running in Docker). In offline mode a missing checkpoint
+    raises an actionable error *before* ``whisper.load_model`` would silently
+    download it, so a processing job never depends on the network.
+    """
+    from ..config import get_config
+    from .. import local_ai
+
+    runtime_config = runtime_config or get_config()
+    resolved = local_ai.normalize_whisper_model_name(
+        model_name or getattr(runtime_config, "whisper_model", None)
+    )
+    download_root = local_ai.resolve_whisper_model_dir(runtime_config)
+    device = (getattr(runtime_config, "whisper_device", None) or "cpu").lower()
+
     if not _WHISPER_AVAILABLE:
         raise RuntimeError(
-            "Whisper is not installed. Install it with: uv add openai-whisper"
+            "Whisper is not installed in this environment. "
+            "Run: pip install openai-whisper (or rebuild the backend image)."
         )
-    if model_name not in _WHISPER_MODEL_CACHE:
-        logger.info("Loading Whisper model: %s", model_name)
-        _WHISPER_MODEL_CACHE[model_name] = _whisper.load_model(model_name)
-    return _WHISPER_MODEL_CACHE[model_name]
+
+    # Never let a job reach the network for weights. The setup script is the
+    # only place a model gets downloaded.
+    local_ai.ensure_whisper_model(runtime_config)
+
+    cache_key = f"{resolved}|{download_root}|{device}"
+    if cache_key not in _WHISPER_MODEL_CACHE:
+        logger.info(
+            "Loading Whisper model '%s' from %s (device=%s)", resolved, download_root, device
+        )
+        download_root.mkdir(parents=True, exist_ok=True)
+        _WHISPER_MODEL_CACHE[cache_key] = _whisper.load_model(
+            resolved, device=device, download_root=str(download_root)
+        )
+    return _WHISPER_MODEL_CACHE[cache_key]
 
 
 def transcribe_with_whisper(
-    video_path: Path, model_name: str = "base", language: Optional[str] = None
+    video_path: Path,
+    model_name: Optional[str] = None,
+    language: Optional[str] = None,
+    runtime_config=None,
 ) -> Dict[str, Any]:
     """Transcribe video using local Whisper with word-level timestamps.
 
     ``language`` None lets Whisper detect it; AssemblyAI-style codes such as
     ``en_us`` are reduced to the ISO 639-1 base Whisper expects.
     """
+    from ..config import get_config
+
+    runtime_config = runtime_config or get_config()
+    model_name = model_name or getattr(runtime_config, "whisper_model", None)
+    # Extract a small mono 16 kHz track first: a 90-minute source never has to
+    # be decoded at full size just to be transcribed.
     audio_path = _prepare_audio_for_transcription(video_path)
-    model = _get_whisper_model(model_name)
+    model = _get_whisper_model(model_name, runtime_config)
     whisper_language = language.split("_", 1)[0] if language else None
     logger.info(
         "Starting Whisper transcription with model: %s (language: %s)",
         model_name,
         whisper_language or "auto",
     )
-    return model.transcribe(str(audio_path), word_timestamps=True, language=whisper_language)
+    return model.transcribe(
+        str(audio_path), word_timestamps=True, language=whisper_language, verbose=None
+    )
 
 
 def _whisper_result_to_transcript_data(whisper_result: Dict[str, Any]) -> Dict[str, Any]:
@@ -340,7 +379,26 @@ def get_video_transcript(
                 "Pass source_url to get_video_transcript()."
             )
         return _get_transcript_with_youtube_captions(source_url)
-    return _get_transcript_with_assemblyai(video_path, speech_model, runtime_config)
+    if provider == "assemblyai":
+        # Hosted transcription is optional and must be requested explicitly.
+        if getattr(runtime_config, "offline_mode", True) or not getattr(
+            runtime_config, "allow_hosted_ai", False
+        ):
+            raise RuntimeError(
+                "AssemblyAI transcription is disabled because ClipWright Studio runs offline. "
+                "Set TRANSCRIPTION_PROVIDER=whisper to transcribe locally."
+            )
+        if not getattr(runtime_config, "assembly_ai_api_key", None):
+            raise RuntimeError(
+                "TRANSCRIPTION_PROVIDER=assemblyai needs ASSEMBLY_AI_API_KEY, "
+                "which is not set. Use TRANSCRIPTION_PROVIDER=whisper to stay local."
+            )
+        return _get_transcript_with_assemblyai(video_path, speech_model, runtime_config)
+    # An unknown provider must never silently become a cloud upload.
+    raise ValueError(
+        f"Unsupported TRANSCRIPTION_PROVIDER '{provider}'. "
+        "Use whisper (default), youtube_captions, or assemblyai."
+    )
 
 
 def _get_transcript_with_assemblyai(
@@ -418,7 +476,10 @@ def _get_transcript_with_whisper(video_path: Path, runtime_config) -> str:
     model_name = runtime_config.whisper_model
     logger.info("Starting Whisper transcription with model: %s", model_name)
     whisper_result = transcribe_with_whisper(
-        video_path, model_name, runtime_config.transcription_language or None
+        video_path,
+        model_name,
+        runtime_config.transcription_language or None,
+        runtime_config=runtime_config,
     )
 
     formatted_lines = format_transcript_for_analysis(whisper_result)

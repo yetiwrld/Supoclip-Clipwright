@@ -1,6 +1,6 @@
 # API Reference
 
-This is a practical reference for the API surface used by SupoClip. It combines the frontend proxy routes and the backend routes they rely on.
+This is a practical reference for the API surface used by ClipWright Studio. It combines the frontend proxy routes and the backend routes they rely on.
 
 For exact schemas and interactive testing, also use FastAPI docs at `http://localhost:8000/docs`.
 
@@ -15,21 +15,21 @@ the database user is unverified. Existing keys, listing, revocation and ordinary
 sign-in continue to work. Self-hosted installations also need SES configured to
 deliver verification links; existing users are not automatically marked verified.
 
-Send it to the backend (hosted: `https://api.supoclip.com`, self-hosted: your backend URL) with either header:
+Send it to the backend (hosted: `https://api.clipwright.example`, self-hosted: your backend URL) with either header:
 
 ```bash
-curl https://api.supoclip.com/tasks/ \
+curl https://api.clipwright.example/tasks/ \
   -H "Authorization: Bearer sk_..."
 
-curl https://api.supoclip.com/tasks/ \
+curl https://api.clipwright.example/tasks/ \
   -H "x-api-key: sk_..."
 ```
 
-API keys authenticate `/tasks/*`, `/fonts` and `/upload`. Revoking a key in the app takes effect immediately. For AI agents (Claude, Cursor and other MCP clients), use the [SupoClip MCP server](../mcp/README.md), which wraps this API.
+API keys authenticate `/tasks/*`, `/fonts` and `/upload`. Revoking a key in the app takes effect immediately. For AI agents (Claude, Cursor and other MCP clients), use the [ClipWright Studio MCP server](../mcp/README.md), which wraps this API.
 
 ## API Layers
 
-SupoClip has two relevant layers:
+ClipWright Studio has two relevant layers:
 
 - Frontend API routes in `frontend/src/app/api`
   - These are what the browser usually calls
@@ -270,7 +270,7 @@ Connections:
   - Disconnect an account, cancel its scheduled posts and revoke the grant at the platform
     (best effort; Instagram has no revocation endpoint)
 - `DELETE /social/connections`
-  - Disconnect every account (called when a user deletes their SupoClip account)
+  - Disconnect every account (called when a user deletes their ClipWright Studio account)
 
 Posts:
 

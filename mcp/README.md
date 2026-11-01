@@ -1,12 +1,12 @@
-# SupoClip MCP Server
+# ClipWright Studio MCP Server
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for
-[SupoClip](https://supoclip.com) — turn long-form videos (YouTube links or
+[ClipWright Studio](https://clipwright.example) — turn long-form videos (YouTube links or
 direct URLs) into short, vertical, subtitled viral clips from any MCP client
 (Claude Desktop, Claude Code, Cursor, etc.).
 
-By default it talks to the **official hosted SupoClip API** at
-`https://api.supoclip.com`. Point it at your own deployment by setting
+By default it talks to the **official hosted ClipWright Studio API** at
+`https://api.clipwright.example`. Point it at your own deployment by setting
 `SUPOCLIP_API_URL`.
 
 ## What it can do
@@ -32,7 +32,7 @@ Tools marked ✓ require an API key (or self-host credentials, see below).
 
 ## Getting an API key
 
-1. Sign in at [supoclip.com](https://supoclip.com).
+1. Sign in at [clipwright.example](https://clipwright.example).
 2. Go to **Settings → API Keys**.
 3. Create a key and copy it (it's shown only once). It looks like `sk_…`.
 
@@ -43,7 +43,7 @@ All configuration is via environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SUPOCLIP_API_KEY` | – | Your API key (recommended auth). |
-| `SUPOCLIP_API_URL` | `https://api.supoclip.com` | Backend base URL. Set for self-hosting. |
+| `SUPOCLIP_API_URL` | `https://api.clipwright.example` | Backend base URL. Set for self-hosting. |
 | `SUPOCLIP_DOWNLOAD_DIR` | `./supoclip-downloads` | Where downloaded/exported clips are written. |
 | `SUPOCLIP_TIMEOUT` | `60` | HTTP timeout (seconds) for non-download requests. |
 | `SUPOCLIP_USER_ID` | – | Self-host only: authenticate by user id (see below). |
@@ -80,14 +80,14 @@ supoclip-mcp
 ## Hosted SSE server
 
 For clients that add a remote MCP URL, run the server over SSE and require a
-SupoClip API key as the client Bearer token:
+ClipWright Studio API key as the client Bearer token:
 
 ```bash
-SUPOCLIP_API_URL=https://api.supoclip.com \
+SUPOCLIP_API_URL=https://api.clipwright.example \
 SUPOCLIP_MCP_TRANSPORT=sse \
 SUPOCLIP_MCP_HOST=0.0.0.0 \
 SUPOCLIP_MCP_PORT=9100 \
-SUPOCLIP_MCP_PUBLIC_URL=https://mcp.supoclip.com \
+SUPOCLIP_MCP_PUBLIC_URL=https://mcp.clipwright.example \
 SUPOCLIP_MCP_REQUIRE_BEARER_AUTH=true \
 supoclip-mcp
 ```
@@ -95,7 +95,7 @@ supoclip-mcp
 Then configure the MCP client with:
 
 ```text
-Server URL: https://mcp.supoclip.com/sse
+Server URL: https://mcp.clipwright.example/sse
 Transport: SSE
 Authentication: Bearer Token
 Token: sk_your_supoclip_api_key
@@ -140,7 +140,7 @@ claude mcp add supoclip -e SUPOCLIP_API_KEY=sk_your_key_here \
 
 ## License
 
-AGPL-3.0-or-later, matching the SupoClip project.
+AGPL-3.0-or-later, matching the ClipWright Studio project.
 
 ### Clip length
 

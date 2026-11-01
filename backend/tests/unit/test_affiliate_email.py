@@ -15,8 +15,8 @@ def configured_service() -> AffiliateEmailService:
         aws_region="eu-central-1",
         aws_access_key_id="access-key",
         aws_secret_access_key="secret-key",
-        ses_from_email="SupoClip <noreply@example.com>",
-        app_base_url="https://supoclip.com",
+        ses_from_email="ClipWright Studio <noreply@example.com>",
+        app_base_url="https://clipwright.example",
     )
     return AffiliateEmailService(config)
 
@@ -26,7 +26,7 @@ def test_approved_email_contains_link_and_code():
 
     content = configured_service()._build_approved_email(user, "maya")
 
-    assert "https://supoclip.com/?ref=maya" in content.text
+    assert "https://clipwright.example/?ref=maya" in content.text
     assert "MAYA" in content.html
     assert "20% off their first 3 months" in content.text
 
@@ -51,7 +51,7 @@ def test_applied_email_escapes_applicant_fields():
     )
 
     assert "<script>" not in content.html
-    assert "https://supoclip.com/admin#affiliates" in content.text
+    assert "https://clipwright.example/admin#affiliates" in content.text
 
 
 @pytest.fixture

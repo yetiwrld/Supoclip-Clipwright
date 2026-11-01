@@ -15,12 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/app/status-badge";
 import { cn } from "@/lib/utils";
 import { intlLocale } from "@/i18n/config";
-import { APP_STORE_ID } from "@/lib/site";
 import { fetchBackend } from "@/server/backend-api";
 
 const ACTIVE_TASK_STATUSES = ["queued", "processing", "pending"];
 /** The Pro subscription's "Creator offer" in App Store Connect; add each creator's custom code there. */
-const APP_STORE_CREATOR_OFFER_URL = `https://appstoreconnect.apple.com/apps/${APP_STORE_ID}/distribution/subscriptions/6786756790/pricing/offer-codes/e3b69863-0319-4852-a9c8-204bd84a8183`;
 
 const th = "px-5 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider text-muted-foreground";
 const td = "px-5 py-3 text-sm";
@@ -290,7 +288,6 @@ export default async function AdminPage({
         <Panel
           title={t("creators.title")}
           description={t(pendingAffiliates === 1 ? "creators.pendingOne" : "creators.pendingOther", { count: pendingAffiliates })}
-          action={<a href={APP_STORE_CREATOR_OFFER_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-medium underline-offset-4 hover:underline">{t("creators.offerCodes")}</a>}
         >
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y">

@@ -12,7 +12,8 @@ import { FeedbackButton } from "@/components/feedback-button";
 import { PostHogIdentity } from "@/components/posthog-identity";
 import { ThemeProvider } from "@/components/theme-provider";
 import { intlLocale } from "@/i18n/config";
-import { APP_STORE_ID, COMPANY_NAME, getSiteUrl } from "@/lib/site";
+import { getSiteUrl } from "@/lib/site";
+import { BRAND_FAVICON, BRAND_ICON_180, BRAND_ICON_192, BRAND_ICON_32, BRAND_ICON_512, BRAND_NAME } from "@/lib/brand";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -47,21 +48,30 @@ export async function generateMetadata(): Promise<Metadata> {
   },
   description: t("description"),
   metadataBase: new URL(getSiteUrl()),
-  applicationName: "SupoClip",
-  authors: [{ name: "SupoClip Team", url: getSiteUrl() }],
-  creator: "SupoClip Team",
-  publisher: COMPANY_NAME,
+  applicationName: BRAND_NAME,
+  authors: [{ name: `${BRAND_NAME} contributors`, url: getSiteUrl() }],
+  creator: `${BRAND_NAME} contributors`,
   category: t("category"),
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: BRAND_FAVICON, sizes: "any" },
+      { url: BRAND_ICON_32, sizes: "32x32", type: "image/png" },
+      { url: BRAND_ICON_192, sizes: "192x192", type: "image/png" },
+      { url: BRAND_ICON_512, sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: BRAND_FAVICON,
+    apple: [{ url: BRAND_ICON_180, sizes: "180x180", type: "image/png" }],
   },
-  itunes: {
-    appId: APP_STORE_ID,
+  appleWebApp: {
+    capable: true,
+    title: BRAND_NAME,
+    statusBarStyle: "black-translucent",
   },
   openGraph: {
     title: t("title"),
     description: t("openGraphDescription"),
-    siteName: "SupoClip",
+    siteName: BRAND_NAME,
     type: "website",
   },
   twitter: {
@@ -91,8 +101,10 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
 
+  // Dark is the product default: the class is present before hydration so
+  // there is no white flash. next-themes keeps the user's saved choice.
   return (
-    <html lang={intlLocale(locale)} suppressHydrationWarning>
+    <html lang={intlLocale(locale)} className="dark" suppressHydrationWarning>
       <head>
         {isDataFastEnabled ? (
           <>
@@ -131,7 +143,7 @@ export default async function RootLayout({
           </>
         ) : null}
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} bg-background text-foreground antialiased`}>
         <ThemeProvider>
           <NextIntlClientProvider locale={locale} messages={messages}>
             <TooltipProvider>

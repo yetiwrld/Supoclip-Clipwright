@@ -288,8 +288,17 @@ async def test_noop_plan_cannot_claim_a_change_that_was_not_applied(monkeypatch,
     assert result["summary"] == "Your draft is unchanged."
 
 
+HOSTED_EDIT_ENV = {"AI_EDIT_MODEL": "claude-sonnet-5-5"}
+
+
+def _hosted_config():
+    """Config stub for the opt-in hosted path (offline mode is off)."""
+    return SimpleNamespace(anthropic_api_key="key", hosted_ai_enabled=True)
+
+
 async def test_plan_edit_handles_refusals(monkeypatch):
-    monkeypatch.setattr(ai, "get_config", lambda: SimpleNamespace(anthropic_api_key="key"))
+    monkeypatch.setenv("AI_EDIT_MODEL", "claude-sonnet-5-5")
+    monkeypatch.setattr(ai, "get_config", _hosted_config)
     response = SimpleNamespace(stop_reason="refusal", parsed_output=None)
 
     class Client:
@@ -302,7 +311,8 @@ async def test_plan_edit_handles_refusals(monkeypatch):
 
 
 async def test_plan_edit_sends_sonnet_with_fallbacks_and_schema(monkeypatch):
-    monkeypatch.setattr(ai, "get_config", lambda: SimpleNamespace(anthropic_api_key="key"))
+    monkeypatch.setenv("AI_EDIT_MODEL", "claude-sonnet-5-5")
+    monkeypatch.setattr(ai, "get_config", _hosted_config)
     parsed = plan(summary="Nothing to do.")
     response = SimpleNamespace(
         stop_reason="end_turn", parsed_output=parsed, usage=SimpleNamespace(input_tokens=1, output_tokens=1)

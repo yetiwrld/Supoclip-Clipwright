@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/lib/auth-client";
 import { useCopyText } from "@/lib/copy-text";
-import { appStoreRedeemUrl } from "@/lib/site";
+import { creatorCodeRedeemUrl } from "@/lib/site";
 
 const APPLY_PATH = "/settings/creator-program";
 
@@ -204,7 +204,7 @@ export default function CreatorProgramPage() {
           <CopyField label={t("creator.yourLink")} copyLabel={t("creator.copyLink")} value={`${origin}/?ref=${application.slug}`} />
           <CopyField label={t("creator.yourCode")} copyLabel={t("creator.copyCode")} value={application.slug.toUpperCase()} />
           {application.app_store_code_added_at ? (
-            <CopyField label={t("creator.iphoneLink")} copyLabel={t("creator.copyIphone")} value={appStoreRedeemUrl(application.slug)} />
+            <CopyField label={t("creator.iphoneLink")} copyLabel={t("creator.copyIphone")} value={creatorCodeRedeemUrl(application.slug)} />
           ) : (
             <p className="text-xs text-muted-foreground">{t("creator.iphonePending")}</p>
           )}

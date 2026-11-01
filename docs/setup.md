@@ -11,13 +11,22 @@ This guide covers the recommended Docker setup, local development mode, and the 
 
 ### Required credentials
 
-- `ASSEMBLY_AI_API_KEY`
-- One LLM provider configuration:
+**None.** ClipWright Studio transcribes with a local Whisper checkpoint and
+analyses with a local Ollama model. See [local-ai.md](local-ai.md) for the model
+formats, sizes and storage paths, and `scripts/setup_local_ai.py` for the
+download steps.
+
+### Optional: hosted AI instead of local AI
+
+Only used when you explicitly set `OFFLINE_MODE=false` **and**
+`ALLOW_HOSTED_AI=true`. Nothing below is needed for local operation.
+
+- `ASSEMBLY_AI_API_KEY` with `TRANSCRIPTION_PROVIDER=assemblyai`
+- One hosted LLM provider configuration:
   - `OPENAI_API_KEY` with `LLM=openai:...`
   - `GOOGLE_API_KEY` with `LLM=google-gla:...`
   - `ANTHROPIC_API_KEY` with `LLM=anthropic:...`
   - `OPENROUTER_API_KEY` with `LLM=openrouter:<vendor>/<model>`
-  - `LLM=ollama:...` with an available Ollama server, optionally `OLLAMA_BASE_URL`
 
 ### Optional credentials
 
@@ -29,13 +38,13 @@ This guide covers the recommended Docker setup, local development mode, and the 
 
 ## Recommended Setup: Docker
 
-Docker is the intended path for running SupoClip because it starts the frontend, backend, worker, PostgreSQL, and Redis together with the expected wiring.
+Docker is the intended path for running ClipWright Studio because it starts the frontend, backend, worker, PostgreSQL, and Redis together with the expected wiring.
 
 ### 1. Clone the repository
 
 ```bash
 git clone <your-repo-url>
-cd supoclip
+cd clipwright
 ```
 
 ### 2. Create a local environment file
@@ -47,9 +56,12 @@ cp .env.example .env
 Then edit `.env` and set at least:
 
 ```env
-ASSEMBLY_AI_API_KEY=your_assemblyai_key
-LLM=google-gla:gemini-3-flash-preview
-GOOGLE_API_KEY=your_google_key
+# Local AI (defaults that ship in .env.example)
+OFFLINE_MODE=true
+TRANSCRIPTION_PROVIDER=whisper
+WHISPER_MODEL_SIZE=small
+LLM=ollama:llama3.2:3b
+AI_EDIT_MODEL=ollama:llama3.2:3b
 BETTER_AUTH_SECRET=replace_this_for_real_use
 BACKEND_AUTH_SECRET=replace_this_if_using_hosted_mode
 
@@ -57,6 +69,13 @@ BACKEND_AUTH_SECRET=replace_this_if_using_hosted_mode
 NEXT_PUBLIC_DATAFAST_WEBSITE_ID=dfid_xxxxx
 NEXT_PUBLIC_DATAFAST_DOMAIN=your-domain.com
 NEXT_PUBLIC_DATAFAST_ALLOW_LOCALHOST=false
+```
+
+Before starting, download the models once (explicit, never at app startup):
+
+```bash
+python scripts/setup_local_ai.py --write-env --install-whisper   # Whisper .pt into ./data/models/whisper
+ollama pull llama3.2:3b                                          # Ollama GGUF into Ollama's store
 ```
 
 ### 3. Start the stack
@@ -82,11 +101,15 @@ docker-compose ps
 
 You should see these services:
 
-- `supoclip-frontend`
-- `supoclip-backend`
-- `supoclip-worker`
-- `supoclip-postgres`
-- `supoclip-redis`
+- `clipwright-frontend`
+- `clipwright-backend`
+- `clipwright-worker`
+- `clipwright-ai-worker`
+- `clipwright-postgres`
+- `clipwright-redis`
+
+(SupoClip-era container names were `supoclip-*`; scripts that target the old
+names need updating — see [REBRANDING.md](REBRANDING.md).)
 
 ### 5. Open the application
 
@@ -104,6 +127,20 @@ For production, preserve the port your reverse proxy uses (for example,
 `CORS_ORIGINS` set to your public HTTPS origin. For local custom ports, set
 those URLs/origins to match the port you chose. Changing `NEXT_PUBLIC_*`
 values for a production image requires rebuilding the frontend.
+
+### Verify the local AI stack
+
+```bash
+python scripts/setup_local_ai.py --check      # Docker, FFmpeg, Ollama, models, /health
+ollama list                                   # llama3.2:3b must be listed
+curl http://localhost:8000/local-ai/status    # live probe from inside the backend
+ls -lh data/models/whisper                    # small.pt must be present
+```
+
+The same information is rendered in the app under **Settings → Offline & local
+AI**. A ready install shows Ollama reachable, the configured LLM model present,
+Whisper available and readiness "ready". Anything else comes with the exact
+command that fixes it.
 
 ## What Docker Starts
 
@@ -208,7 +245,7 @@ pnpm run dev
 
 ## Data and Volumes
 
-With Docker, SupoClip stores persistent data in named volumes:
+With Docker, ClipWright Studio stores persistent data in named volumes:
 
 - `postgres_data`
 - `redis_data`
@@ -222,7 +259,7 @@ The backend also mounts these local directories:
 
 ## Hosted Mode Versus Self-Hosted Mode
 
-SupoClip defaults to self-host mode:
+ClipWright Studio defaults to self-host mode:
 
 ```env
 SELF_HOST=true
@@ -274,7 +311,23 @@ docker-compose down -v
 docker-compose up -d --build
 ```
 
-Warning: `docker-compose down -v` deletes database and Redis data.
+Warning: `docker-compose down -v` deletes the PostgreSQL and Redis volumes
+(projects, accounts, queue). Imported media, rendered clips and model files live
+in the bind-mounted `./data` tree and survive.
+
+### Where data lives
+
+| Path | Contents | Survives `down` | Survives `down -v` |
+|---|---|---|---|
+| `./data/uploads` | Source media, transcription caches | yes | yes |
+| `./data/clips` | Rendered clips and exports | yes | yes |
+| `./data/models/whisper` | Whisper checkpoints | yes | yes |
+| `./data/ollama` | Ollama blobs (compose profile only) | yes | yes |
+| volume `postgres_data` | Projects, tasks, transcripts, edits | yes | no |
+| volume `redis_data` | Job queue state | yes | no |
+
+Set `CLIPWRIGHT_DATA_DIR` to relocate the whole `./data` tree; see
+[media-storage.md](media-storage.md).
 
 ## Next Steps
 

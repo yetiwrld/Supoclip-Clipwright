@@ -32,30 +32,31 @@ const html = (page: Page) => page.locator("html");
 
 test.use({ colorScheme: "dark", viewport: { width: 1440, height: 900 } });
 
-test("marketing and auth pages stay light for a dark OS preference and a saved dark choice", async ({ page }) => {
+test("every route starts dark, including marketing and auth pages", async ({ page }) => {
   await page.route("**/api/auth/get-session**", route => route.fulfill({ json: null }));
   await page.goto("/");
-  await expect(html(page)).toHaveClass(/\blight\b/);
-  await shot(page, "landing-os-dark");
+  await expect(html(page)).toHaveClass(/\bdark\b/);
+  await shot(page, "landing-default-dark");
 
-  await page.evaluate(() => localStorage.setItem("theme", "dark"));
   await page.goto("/sign-in");
-  await expect(html(page)).toHaveClass(/\blight\b/);
-  await expect(html(page)).not.toHaveClass(/\bdark\b/);
-  await shot(page, "sign-in-saved-dark");
+  await expect(html(page)).toHaveClass(/\bdark\b/);
+  await shot(page, "sign-in-default-dark");
 });
 
-test("the app starts light, switches to dark from the sidebar, and keeps it", async ({ page }) => {
+test("the app starts dark, can switch to light, and keeps the choice", async ({ page }) => {
   await signedIn(page);
   await page.goto("/list");
   await expect(page.getByRole("link", { name: /Podcast/ }).first()).toBeVisible();
+  await expect(html(page)).toHaveClass(/\bdark\b/);
+  await shot(page, "library-default-dark");
+
+  await page.getByRole("button", { name: "Switch light/dark theme" }).click();
   await expect(html(page)).toHaveClass(/\blight\b/);
   await shot(page, "library-light");
 
   await page.getByRole("button", { name: "Switch light/dark theme" }).click();
   await expect(html(page)).toHaveClass(/\bdark\b/);
   await page.mouse.move(700, 450);
-  await shot(page, "library-dark");
 
   await page.getByRole("checkbox", { name: "Select Podcast", exact: true }).check();
   await expect(page.getByRole("button", { name: /Delete/ }).last()).toBeVisible();
@@ -66,6 +67,7 @@ test("the app starts light, switches to dark from the sidebar, and keeps it", as
   await expect(html(page)).toHaveClass(/\bdark\b/);
   await shot(page, "create-dark");
 
+  // The saved dark choice survives navigation back to a marketing page.
   await page.goto("/sign-in");
-  await expect(html(page)).toHaveClass(/\blight\b/);
+  await expect(html(page)).toHaveClass(/\bdark\b/);
 });

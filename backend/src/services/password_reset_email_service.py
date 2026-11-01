@@ -28,21 +28,21 @@ class PasswordResetEmailService:
         safe_url = escape(reset_url, quote=True)
 
         return EmailContent(
-            subject="Reset your SupoClip password",
+            subject="Reset your ClipWright Studio password",
             html=(
                 f"<p>Hi {escape(first_name)},</p>"
-                "<p>We received a request to reset the password for your SupoClip account.</p>"
+                "<p>We received a request to reset the password for your ClipWright Studio account.</p>"
                 f'<p><a href="{safe_url}">Reset your password</a></p>'
                 "<p>This link expires in 1 hour. If you did not request a password reset, "
                 "you can ignore this email; your password will not change.</p>"
-                "<p>Team SupoClip</p>"
+                "<p>Team ClipWright Studio</p>"
             ),
             text=(
                 f"Hi {first_name},\n\n"
-                "We received a request to reset the password for your SupoClip account.\n\n"
+                "We received a request to reset the password for your ClipWright Studio account.\n\n"
                 f"Reset your password: {reset_url}\n\n"
                 "This link expires in 1 hour. If you did not request a password reset, "
                 "you can ignore this email; your password will not change.\n\n"
-                "Team SupoClip"
+                "Team ClipWright Studio"
             ),
         )

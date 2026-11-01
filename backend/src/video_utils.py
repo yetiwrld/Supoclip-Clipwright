@@ -758,7 +758,7 @@ def create_clips_with_transitions(
         f"Creating {len(segments)} standalone clips subtitles={add_subtitles} template '{caption_template}'"
     )
     logger.info(
-        "Inter-clip transitions are disabled for standalone SupoClip exports"
+        "Inter-clip transitions are disabled for standalone ClipWright Studio exports"
     )
     return create_clips_from_segments(
         video_path,
