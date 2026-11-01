@@ -139,6 +139,34 @@ Static smoke test that *was* run: `next dev` served `/`, `/sign-in`, `/blog`,
 zero occurrences of `SupoClip`, `/brand/clipwright-logo.png` served byte-identical
 (1,057,282 bytes = the uploaded asset), and manifest/favicon resolving.
 
+### The sandbox preview (why it needed a workaround)
+
+The live preview runs `next dev` against the real frontend with two
+environment-only substitutions, neither of which is in the repository:
+
+1. **`src/generated/prisma`** is gitignored (it is `prisma generate` output).
+   Generation cannot run here because Prisma downloads its schema engine from
+   `binaries.prisma.sh`, which this sandbox cannot reach, so every page that
+   touches auth failed with `Cannot find module '../generated/prisma'`. A local
+   stand-in client (no rows, no database — also gitignored) lets the marketing
+   and auth screens render signed-out. On a real machine `pnpm install &&
+   pnpm exec prisma generate` produces the genuine client; nothing in the repo
+   or the Docker image is affected.
+2. **Google Fonts** (`Geist`, `Geist Mono`, `Syne`) are unreachable here, so
+   `next/font` falls back to system fonts. On a networked build the fonts are
+   downloaded once and embedded in the build output — no runtime font requests,
+   so the offline-first guarantee is unaffected.
+
+`frontend/next.config.ts` gained an env-gated, dev-only `allowedDevOrigins`
+(`NEXT_DEV_ALLOWED_ORIGINS`) so tunnel/preview hostnames can load `/_next/*`
+assets; production builds ignore it.
+
+Preview routes verified as HTTP 200 with `<html class="dark">`: `/`, `/sign-in`,
+`/sign-up`, `/blog`, `/changelog`, `/demo`, plus `/api/auth/get-session` and the
+brand image (byte-identical, 1,057,282 bytes). The library/editor require
+PostgreSQL and the backend stack, so they are reachable only through
+`docker compose up`.
+
 Exact commands to finish verification on a Windows machine:
 
 ```powershell
