@@ -7,13 +7,20 @@ provenance notes so drift is visible in review rather than at runtime.
 
 Submodules are imported explicitly by the kernel and the tests so that this
 package's import stays cheap and side-effect free.
+
+``discovery``, ``packaging`` and ``kaggle_cli`` are stdlib-only helpers used by the
+kernel bootstrap and by the PowerShell scripts in ``scripts/``; they hold the logic
+that would otherwise be untestable inside a ``.ps1`` file.
 """
 
 __all__ = [
     "ai_inference",
+    "discovery",
     "downloader",
     "environment",
+    "kaggle_cli",
     "manifest",
+    "packaging",
     "rendering",
     "reporting",
     "transcription",

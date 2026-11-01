@@ -36,8 +36,33 @@ def _kernel_tree() -> ast.Module:
     return ast.parse(KERNEL.read_text(encoding="utf-8"))
 
 
+def _imported_module_aliases(tree: ast.AST) -> set[str]:
+    """Names bound to ``processor`` submodules by the kernel's import block."""
+    aliases = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and (node.module or "") == "processor":
+            aliases.update(alias.asname or alias.name for alias in node.names)
+    return aliases
+
+
 def _processor_attributes(tree: ast.AST):
-    """Yield (module_name, attribute, node) for every ``processor.X.y`` access."""
+    """Yield ``(module_name, attribute, node)`` for bridge-module attribute access.
+
+    Catches both spellings the kernel uses: ``processor.manifest.validate_job`` and
+    ``manifest.validate_job`` after ``from processor import manifest``.
+    """
+    aliases = _imported_module_aliases(tree)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute) or not isinstance(node.value, ast.Name):
+            continue
+        base = node.value.id
+        if base == "processor":
+            continue  # handled through the aliases below
+        if base in aliases and base in MODULES:
+            yield base, node.attr, node
+
+
+def _qualified_processor_attributes(tree: ast.AST):
     for node in ast.walk(tree):
         if not isinstance(node, ast.Attribute):
             continue
@@ -47,44 +72,49 @@ def _processor_attributes(tree: ast.AST):
                 yield base.attr, node.attr, node
 
 
-def test_kernel_parses():
-    assert _kernel_tree().body
+def test_the_wiring_scan_actually_finds_references():
+    """Guards against a vacuous test: the kernel must reference bridge modules."""
+    found = list(_processor_attributes(_kernel_tree())) + list(
+        _qualified_processor_attributes(_kernel_tree())
+    )
+    assert len(found) >= 20, f"only found {len(found)} module references"
 
 
 def test_every_referenced_processor_attribute_exists():
     missing = [
         f"processor.{module}.{attribute}"
-        for module, attribute, _ in _processor_attributes(_kernel_tree())
+        for module, attribute, _ in list(_processor_attributes(_kernel_tree()))
+        + list(_qualified_processor_attributes(_kernel_tree()))
         if not hasattr(MODULES[module], attribute)
     ]
     assert missing == []
 
 
 def test_keyword_arguments_match_the_real_signatures():
+    tree = _kernel_tree()
+    calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)]
     problems = []
-    for module, attribute, node in _processor_attributes(_kernel_tree()):
-        if not isinstance(node.ctx, ast.Load):
-            continue
+    for module, attribute, node in list(_processor_attributes(tree)) + list(
+        _qualified_processor_attributes(tree)
+    ):
         target = getattr(MODULES[module], attribute)
         if not callable(target):
             continue
-        parent = None
-        for candidate in ast.walk(_kernel_tree()):
-            if isinstance(candidate, ast.Call) and candidate.func is node:
-                parent = candidate
-                break
-        if parent is None:
-            continue
-        keywords = {kw.arg for kw in parent.keywords if kw.arg}
-        try:
-            signature = inspect.signature(target)
-        except (TypeError, ValueError):  # pragma: no cover - builtins only
-            continue
-        if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in signature.parameters.values()):
-            continue
-        unexpected = keywords - set(signature.parameters)
-        if unexpected:
-            problems.append(f"processor.{module}.{attribute}: unexpected kwargs {sorted(unexpected)}")
+        for call in calls:
+            if call.func is not node:
+                continue
+            keywords = {kw.arg for kw in call.keywords if kw.arg}
+            try:
+                signature = inspect.signature(target)
+            except (TypeError, ValueError):  # pragma: no cover - builtins only
+                continue
+            if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in signature.parameters.values()):
+                continue
+            unexpected = keywords - set(signature.parameters)
+            if unexpected:
+                problems.append(
+                    f"processor.{module}.{attribute}: unexpected kwargs {sorted(unexpected)}"
+                )
     assert problems == []
 
 

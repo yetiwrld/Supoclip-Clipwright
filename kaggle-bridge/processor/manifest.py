@@ -118,7 +118,13 @@ def utc_now_iso() -> str:
 
 
 def load_json(path: os.PathLike[str] | str) -> Dict[str, Any]:
-    with open(path, "r", encoding="utf-8") as stream:
+    """Parse a job/result manifest.
+
+    ``utf-8-sig`` so a file written by Windows PowerShell 5.1 (whose
+    ``Set-Content -Encoding UTF8`` emits a BOM) still loads; ``json`` refuses a
+    BOM under plain ``utf-8``.
+    """
+    with open(path, "r", encoding="utf-8-sig") as stream:
         return json.load(stream)
 
 

@@ -7,8 +7,9 @@ from `benchmark.json` after a real kernel run — by hand, from the artefact, no
 an estimate. Until a run has happened, the honest answer to "how fast is it?" is
 **unknown**, and this document says so rather than guessing.
 
-Kit: Kaggle `NvidiaTeslaT4` (2 × T4, 16 GB each), 4 vCPU, 16 GB RAM, 12 h kernel cap
-(9 h for GPU sessions in practice), 20 GB autosaved output.
+Kit: Kaggle `NvidiaTeslaT4` (2 × T4, 16 GB each), 4 vCPU, 16 GB RAM. Current Kaggle
+notebook specifications allow **12 h for CPU and GPU sessions** and 9 h for TPU
+sessions; ~20 GB of `/kaggle/working` is autosaved.
 
 ---
 

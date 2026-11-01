@@ -158,3 +158,25 @@ the bridge.
 workers and local media storage were not modified for Phase 1. The bridge reads
 production *source* to copy contracts; it never imports it, and no production file
 has a `kaggle` import.
+
+---
+
+## 9. Kaggle mount layout is not stable, and the bridge stops guessing
+
+A dataset's mount point comes from its **slug**, not from the uploaded archive's
+name, and whether the archive's top-level folder survives depends on how it was
+uploaded. The kernel used to search a fixed list of shapes and take the first hit;
+two datasets that both contained a `processor` directory, or a second `.mp4`
+mounted for another reason, could silently win.
+
+`processor/discovery.py` now bounds the search (depth 4, no symlinks, caches
+skipped), requires `processor/__init__.py` before trusting a directory, validates a
+`job.json` candidate against `clipwright.kaggle.job/1`, and refuses to choose
+between multiple videos when the declared filename matches none. Every failure
+message lists what was searched. `tests/test_discovery.py` models the mount tree, so
+a layout change in Kaggle surfaces as a failing test rather than a wasted GPU run.
+
+Still not verifiable here: the exact mount depth Kaggle uses for a *private*
+dataset created through the web UI. The bounded search covers the two shapes seen in
+public examples; the first real run's `environment.json` and log will confirm which
+one applied.

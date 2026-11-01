@@ -24,15 +24,19 @@ its reports, because the failure reason is the deliverable.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-OUTPUT_DIR = Path("/kaggle/working/clipwright-output")
-INPUT_ROOT = Path("/kaggle/input")
+BRIDGE_DIR_NAME = "kaggle-bridge"
+# The two Kaggle mount points. They can be pointed elsewhere *for tests only*
+# (tests/test_kernel_discovery.py builds a fake mount tree); on Kaggle the
+# defaults are what the notebook actually sees.
+INPUT_ROOT = Path(os.environ.get("CLIPWRIGHT_KAGGLE_INPUT", "/kaggle/input"))
+WORKING_ROOT = Path(os.environ.get("CLIPWRIGHT_KAGGLE_WORKING", "/kaggle/working"))
+OUTPUT_DIR = WORKING_ROOT / "clipwright-output"
 MAX_SAVED_OUTPUT_BYTES = 19 * 1024 * 1024 * 1024  # Kaggle autosaves ~20 GB
 
 
@@ -41,42 +45,85 @@ MAX_SAVED_OUTPUT_BYTES = 19 * 1024 * 1024 * 1024  # Kaggle autosaves ~20 GB
 # --------------------------------------------------------------------------- #
 
 
+def _candidate_roots(explicit: Optional[str] = None) -> List[Path]:
+    """Places the code dataset can be mounted, cheapest check first.
+
+    Two levels under ``/kaggle/input`` covers ``<slug>`` and
+    ``<slug>/kaggle-bridge``; the deeper, verified search happens in
+    :func:`processor.discovery.find_bridge_root` once the package is importable.
+    """
+    roots: List[Path] = []
+    if explicit:
+        roots.append(Path(explicit))
+    roots.extend(
+        [
+            Path.cwd() / BRIDGE_DIR_NAME,
+            Path.cwd(),
+            Path.cwd().parent / BRIDGE_DIR_NAME,
+            Path.cwd().parent,
+            WORKING_ROOT / BRIDGE_DIR_NAME,
+            WORKING_ROOT,
+        ]
+    )
+    if INPUT_ROOT.is_dir():
+        for child in sorted(INPUT_ROOT.iterdir()):
+            if not child.is_dir():
+                continue
+            roots.append(child)
+            roots.append(child / BRIDGE_DIR_NAME)
+            for grandchild in sorted(child.iterdir()):
+                if grandchild.is_dir():
+                    roots.append(grandchild)
+                    roots.append(grandchild / BRIDGE_DIR_NAME)
+    seen: List[Path] = []
+    for root in roots:
+        if root not in seen:
+            seen.append(root)
+    return seen
+
+
 def bootstrap_bridge_path() -> Path:
-    """Locate the ``processor`` package.
+    """Locate the ``processor`` package and put it on ``sys.path``.
 
     The bridge ships as a private dataset, so the package is normally at
-    ``/kaggle/input/<dataset>/kaggle-bridge``. ``BRIDGE_PATH`` overrides that
-    for local testing.
+    ``/kaggle/input/<dataset-slug>/kaggle-bridge``. ``BRIDGE_PATH`` overrides that
+    for local testing. The *search* lives in :mod:`processor.discovery`, which is
+    tested against a fake mount tree; this function only arranges the import.
     """
-    candidates: List[Path] = []
     override = os.environ.get("BRIDGE_PATH")
-    if override:
-        candidates.append(Path(override))
-    candidates.extend([Path.cwd(), Path.cwd().parent, Path("/kaggle/working/kaggle-bridge")])
-    if INPUT_ROOT.exists():
-        for child in sorted(INPUT_ROOT.iterdir()):
-            candidates.extend([child, child / "kaggle-bridge"])
-            if child.is_dir():
-                for grandchild in sorted(child.iterdir()):
-                    candidates.append(grandchild / "kaggle-bridge")
-                    candidates.append(grandchild)
-
+    candidates = _candidate_roots(override)
     for candidate in candidates:
         if (candidate / "processor" / "__init__.py").is_file():
             if str(candidate) not in sys.path:
                 sys.path.insert(0, str(candidate))
-            return candidate
-    raise SystemExit(
-        "Could not find the 'processor' package. Upload this repository as a private "
-        "Kaggle dataset (see README, 'Push the bridge as a dataset') and make sure the "
-        "dataset root contains 'kaggle-bridge/processor/', or set BRIDGE_PATH."
-    )
+            break
+
+    try:  # import the helper first, then let it do the verified search
+        from processor import discovery as discovery_module
+    except ImportError as error:
+        raise SystemExit(
+            "Could not import the 'processor' package. Upload kaggle-bridge/ as a "
+            f"private Kaggle dataset (expected {INPUT_ROOT}/<dataset>/kaggle-bridge/"
+            "processor/__init__.py), or set BRIDGE_PATH. "
+            f"Import error: {error}"
+        ) from error
+
+    try:
+        root = discovery_module.find_bridge_root(override=override, search_roots=candidates)
+    except discovery_module.DiscoveryError as error:
+        raise SystemExit(str(error)) from error
+
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    return root
 
 
 BRIDGE_ROOT = bootstrap_bridge_path()
 
-from processor import (  # noqa: E402  (import after sys.path bootstrap)
+# imported after the sys.path bootstrap above
+from processor import (  # noqa: E402
     ai_inference,
+    discovery,
     downloader,
     environment,
     manifest,
@@ -93,64 +140,30 @@ from processor import (  # noqa: E402  (import after sys.path bootstrap)
 
 
 def resolve_job_path(explicit: Optional[str]) -> Path:
-    if explicit:
-        path = Path(explicit)
-        if not path.is_file():
-            raise SystemExit(f"job manifest not found: {path}")
-        return path
-
-    for candidate in (
-        Path("/kaggle/working/job.json"),
-        Path.cwd() / "job.json",
-    ):
-        if candidate.is_file():
-            return candidate
-
-    if INPUT_ROOT.exists():
-        matches = sorted(INPUT_ROOT.rglob("*.json"))
-        preferred = [path for path in matches if path.name in ("job.json", "sample-job.json")]
-        for path in preferred or matches:
-            try:
-                payload = manifest.load_json(path)
-            except (OSError, json.JSONDecodeError):
-                continue
-            if isinstance(payload, Mapping) and payload.get("schema_version") == manifest.JOB_SCHEMA_VERSION:
-                return path
-
-    raise SystemExit(
-        "No job manifest found. Attach a private dataset containing job.json, or copy "
-        "config/sample-job.json to /kaggle/working/job.json and edit the paths."
-    )
+    try:
+        return discovery.find_job_manifest(
+            explicit=explicit,
+            working_dirs=(WORKING_ROOT, Path.cwd()),
+            input_root=INPUT_ROOT,
+            is_valid_job=lambda payload: isinstance(payload, Mapping)
+            and payload.get("schema_version") == manifest.JOB_SCHEMA_VERSION,
+        )
+    except discovery.DiscoveryError as error:
+        raise SystemExit(str(error)) from error
 
 
 def resolve_local_input(job: Mapping[str, Any]) -> Path:
     """Find the named input video under /kaggle/input (or the job's own folder)."""
     source = job.get("source") or {}
-    filename = str(source.get("filename") or "")
-    if not filename:
-        raise SystemExit("job.source.filename is required for local_file sources")
-
-    direct = Path(source.get("path") or "")
-    if direct.is_file():
-        return direct
-
-    if INPUT_ROOT.exists():
-        exact = sorted(INPUT_ROOT.rglob(filename))
-        if exact:
-            return exact[0]
-        # Fall back to any video: a single-file dataset often gets renamed by Kaggle.
-        videos = sorted(
-            path
-            for path in INPUT_ROOT.rglob("*")
-            if path.suffix.lower() in (".mp4", ".mov", ".mkv", ".webm", ".m4v", ".avi")
+    try:
+        return discovery.find_input_media(
+            filename=str(source.get("filename") or ""),
+            explicit_path=source.get("path") or None,
+            input_root=INPUT_ROOT,
+            declared_size=source.get("size_bytes"),
         )
-        if videos:
-            return videos[0]
-
-    raise SystemExit(
-        f"input video {filename!r} was not found under {INPUT_ROOT}. Attach the private "
-        "dataset that contains it."
-    )
+    except discovery.DiscoveryError as error:
+        raise SystemExit(str(error)) from error
 
 
 # --------------------------------------------------------------------------- #
@@ -260,6 +273,13 @@ def run(argv: Optional[List[str]] = None) -> int:
     print(environment.to_markdown(env_report))
 
     job_path = resolve_job_path(args.job)
+    print(f"job manifest: {job_path}")
+    if job_path.name != "job.json":
+        print(
+            f"WARNING: using {job_path.name}, not job.json — attach the input dataset that "
+            "contains job.json if this was the bundled example.",
+            file=sys.stderr,
+        )
     job = manifest.load_and_validate_job(job_path)
     manifest.dump_json(output_dir / "job.json", job)
     processing = job.get("processing") or {}

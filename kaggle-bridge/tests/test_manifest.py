@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from processor import manifest
+from processor import discovery, manifest
 
 BRIDGE_ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_JOB = BRIDGE_ROOT / "config" / "sample-job.json"
@@ -182,3 +182,19 @@ def test_verify_outputs_detects_missing_file(tmp_path: Path):
     outcome = manifest.verify_outputs(result)
     assert not outcome.ok
     assert any("missing file" in error for error in outcome.errors)
+
+
+def test_load_json_tolerates_a_utf8_bom(tmp_path: Path):
+    """Windows PowerShell 5.1 writes a BOM; the reader must not choke on it."""
+    path = tmp_path / "job.json"
+    payload = json.dumps(load_sample_job())
+    path.write_bytes(b"\xef\xbb\xbf" + payload.encode("utf-8"))
+
+    loaded = manifest.load_json(path)
+    assert loaded["job_id"] == load_sample_job()["job_id"]
+    assert manifest.validate_job(loaded).ok
+
+    discovered = discovery.find_job_manifest(
+        working_dirs=[tmp_path], input_root=None
+    )
+    assert discovered == path
